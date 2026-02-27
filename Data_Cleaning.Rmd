@@ -1,0 +1,50 @@
+---
+title: "Data Cleaning"
+author: "Sijda Ahmed"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load in libraries
+```{r}
+library(rmarkdown)
+library(haven)
+library(tidyverse)
+```
+
+# Load in datasets
+```{r}
+demographics_data <- read_xpt("DEMO_J.xpt")
+rh_data <- read_xpt("RHQ_J.xpt")
+pthalates_data <- read_xpt("PHTHTE_J.xpt")
+```
+
+# Data cleaning
+```{r}
+# demographics
+demographics_data<- demographics_data |>
+select(SEQN, RIAGENDR, RIDAGEYR, RIDRETH1)
+
+# reproductive health
+rh_data<- rh_data |>
+  select(SEQN, RHQ010, RHQ031, RHQ060, RHQ076)
+
+# pthalates
+pthalates_data<- pthalates_data |>
+select(SEQN, URXCNP, URXMHH)
+
+alldata <- demographics_data %>%
+  full_join(rh_data, by="SEQN") %>%
+  full_join(pthalates_data, by="SEQN") 
+alldata <- na.omit(alldata)
+colnames(alldata) <- c("SEQN", "Gender", "Age", "Race", "Age_FirstPeriod", "RegularPeriod_12m", "Age_LastPeriod", "Pregnancy_Ability", "MEHP")
+summary(alldata)
+
+```
+
+
+
+
