@@ -72,7 +72,6 @@ data_1718 <- na.omit(data_1718)
 colnames(data_1718) <- c("SEQN", "Age", "Race", "Age_FirstPeriod", "RegularPeriod_12m", 
                          "Age_LastPeriod", "UnablePregnant", "MCNP", "MCOP", "MECPP", 
                          "MBP", "MCPP", "MEP", "MEHHP", "MEHP", "MIBP", "MEOHP", "MBZP")
-summary(data_1718)
 
 # Drop missing values
 data_1718 <- data_1718 %>% 
@@ -101,6 +100,9 @@ data_1718$UnablePregnant <- factor(data_1718$UnablePregnant)
 data_1718$UnablePregnant <- revalue(data_1718$UnablePregnant, c("1" = "Yes",
                                                                 "2" = "No")
                                     )
+
+# Summary of variables
+summary(data_1718)
 
 # Save as csv
 write_csv(data_1718, "data/datacleaned_1718.csv")
