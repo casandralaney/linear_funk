@@ -8,7 +8,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Load in libraries
-```{r warning=FALSE}
+```{r warning=FALSE, message = FALSE}
 library(tidyverse)
 library(plyr)
 library(stargazer)
