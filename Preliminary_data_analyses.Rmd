@@ -16,7 +16,7 @@ library(pheatmap)
 ```
 
 # Read in cleaned dataset
-```{r}
+```{r warning=FALSE, message = FALSE}
 data <- read_csv("data/datacleaned_1718.csv") |>
   data.frame()
 ```
@@ -84,10 +84,4 @@ corr_heatmap = pheatmap(correlation_matrix,
 
 corr_heatmap
 ```
-
-
-
-
-
-
 

@@ -8,18 +8,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 # Load in libraries
-```{r}
+```{r warning=FALSE, message = FALSE}
 library(rmarkdown)
 library(haven)
 library(tidyverse)
 library(plyr)
-```
-
-# Load in 2009-2010 datasets
-```{r}
-demo_0910 <- read_xpt("data/2009_2010/DEMO_F.xpt")
-rh_0910 <- read_xpt("data/2009_2010/RHQ_F.xpt")
-pht_0910 <- read_xpt("data/2009_2010/PHTHTE_F.xpt")
 ```
 
 # Load in 2011-2012 datasets
@@ -108,6 +101,4 @@ summary(data_1718)
 write_csv(data_1718, "data/datacleaned_1718.csv")
 
 ```
-
-
 

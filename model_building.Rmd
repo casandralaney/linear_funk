@@ -1,12 +1,10 @@
 ---
-title: "model_building"
-author: "Casandra Laney"
-date: "2026-03-01"
-output: html_document
+title: "Model Building"
+output: pdf_document
 ---
 
-prepare data for modeling
-```{r}
+# Prepare data for modeling
+```{r warning=FALSE, message = FALSE}
 library(glmnet)
 
 data <- read.csv("data/datacleaned_1718.csv") |>
@@ -26,7 +24,7 @@ y <- data$UnablePregnant
 
 ```
 
-all poisson 
+# All poisson regressions
 ```{r}
 # Fit Poisson regression
 fit_pois <- glm.fit(
@@ -41,16 +39,15 @@ fit_pois$coefficients
 # Risk ratios
 exp(fit_pois$coefficients)
 ```
- 
 
-all logit
+# All logit regressions
 ```{r}
 fit_logit <- glm(y ~ X, family = binomial(link = "logit"))
 
 summary(fit_logit)
 ```
 
-first/last period vs. MEP
+# First/last period vs. MEP
 ```{r}
 fit_lm <- lm(Age_FirstPeriod ~ MEP, data = data)
 summary(fit_lm)
@@ -63,7 +60,7 @@ fit_logit <- glm(UnablePregnant ~ MEP, data = data, family = binomial(link = "lo
 summary(fit_logit)
 ```
 
-first/last period vs. MBZP
+# First/last period vs. MBZP
 ```{r}
 fit_lm <- lm(Age_FirstPeriod ~ MBZP, data = data)
 summary(fit_lm)
@@ -76,7 +73,7 @@ fit_logit <- glm(UnablePregnant ~ MBZP, data = data, family = binomial(link = "l
 summary(fit_logit)
 ```
 
-MCPP vs. last period
+# MCPP vs. last period
 ```{r}
 fit_lm <- lm(Age_LastPeriod ~ MCPP, data = data)
 summary(fit_lm)
