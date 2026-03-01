@@ -1,0 +1,158 @@
+---
+title: "Demographic Data"
+author: "Emily Weaver"
+date: "2026-03-01"
+output: html_document
+---
+
+```{r, include=FALSE}
+#setup - getting packages, getting raw data ------------------------------------
+#loading required packages
+library(dplyr)
+library(tidyr)
+library(janitor)
+library(haven)
+library(forcats)
+library(gtsummary)
+
+#loading raw NHANES demographic data, per year 
+#naming convention = "demo" (demographics) year range XX_XX, raw to denote raw files
+demo09_10_raw = read_xpt("data/2009_2010/DEMO_F.xpt")
+demo11_12_raw = read_xpt("data/2011_2012/DEMO_G.xpt")
+demo13_14_raw = read_xpt("data/2013_2014/DEMO_H.xpt")
+demo15_16_raw = read_xpt("data/2015_2016/DEMO_I.xpt")
+demo17_18_raw = read_xpt("data/2017_2018/DEMO_J.xpt")
+```
+
+```{r, include=FALSE}
+#cleaning data and getting ready to merge, writing function -------------------------
+#mapping the list of variables I want to keep
+  vars_keep <- c(
+  "SEQN", # participant survey ID 
+  "RIAGENDR", # gender 
+  "RIDAGEYR", # age in years 
+  "RIDRETH3", # race/ethnicity 
+  "DMDEDUC3", # education - children/youth
+  "DMDEDUC2", # education - 20+ 
+  "INDHHIN2" # household income 
+  )
+
+#this function cleans the data frames and selects only the variables we need, and creates a function that does this for each data frame
+clean_demo_df <- function(df, cycle_label) {
+  df %>%
+    select(any_of(vars_keep)) %>%
+    clean_names() %>%
+    mutate(
+      cycle = cycle_label,
+      across(where(is.numeric), ~ na_if(., 9)),
+      across(where(is.numeric), ~ na_if(., 77)),
+      across(where(is.numeric), ~ na_if(., 99))
+    )
+}
+
+#applies the function to each of our data frames
+demo_09_10_clean <- clean_demo_df(demo09_10_raw, "2009-2010")
+demo_11_12_clean <- clean_demo_df(demo11_12_raw, "2011-2012")
+demo_13_14_clean <- clean_demo_df(demo13_14_raw, "2013-2014")
+demo_15_16_clean <- clean_demo_df(demo15_16_raw, "2015-2016")
+demo_17_18_clean <- clean_demo_df(demo17_18_raw, "2017-2018")
+
+demo_all_years <- bind_rows(
+  demo_09_10_clean,
+  demo_11_12_clean,
+  demo_13_14_clean,
+  demo_15_16_clean,
+  demo_17_18_clean
+)
+
+#getting ready for a table - creating a function and changing the variables to their corresponding meaning
+clean_label <- function(df, cycle_label) {df %>% 
+    mutate(gender = factor(riagendr, levels = c(1, 2), labels = c("Male", "Female")),
+    race_eth = factor(ridreth3,levels = c(1, 2, 3, 4, 6, 7),
+      labels = c(
+        "Mexican American",
+        "Other Hispanic",
+        "Non-Hispanic White",
+        "Non-Hispanic Black",
+        "Non-Hispanic Asian",
+        "Other / Multi-racial")),
+     race_eth = fct_collapse(
+      race_eth,
+      "Hispanic" = c("Mexican American", "Other Hispanic"),
+      "Non-Hispanic White" = "Non-Hispanic White",
+      "Non-Hispanic Black" = "Non-Hispanic Black",
+      "Non-Hispanic Asian" = "Non-Hispanic Asian",
+      "Other / Multi-racial" = "Other / Multi-racial"),
+    edu_adult = factor(dmdeduc2, levels = c(1, 2, 3, 4, 5),
+      labels = c(
+        "< 9th grade",
+        "9–11th grade",
+        "High school / GED",
+        "Some college / AA",
+        "College graduate+")),
+    dmdeduc2 = case_when(dmdeduc3 %in% c(0) ~ "Never Attended School",
+                         dmdeduc3 %in% c(1, 2, 3, 4, 5, 6, 7, 8, 55, 66) ~ ">9th Grade",
+                         dmdeduc3 %in% c(9) ~ "9th Grade",
+                         dmdeduc3 %in% c(10) ~ "10th Grade",
+                         dmdeduc3 %in% c(11) ~ "11th Grade",
+                         dmdeduc3 %in% c(12) ~ "12th Grade",
+                         dmdeduc3 %in% c(13, 14) ~ "High School Graduate/GED",
+                         dmdeduc3 %in% c(15) ~ "More than high school"),
+    edu_youth = dmdeduc2,
+    
+    indhhin2 = case_when(indhhin2 %in% c(1, 2, 3, 4, 5, 13) ~ "<25,000",
+                         indhhin2 %in% c(6, 7) ~ "25,000 - 44,999",
+                         indhhin2 %in% c(8, 9, 10) ~ "50,000 - 74,999",
+                         indhhin2 %in% c(14, 15) ~ ">75,000"),
+    income = indhhin2,
+    age = ridageyr,
+    cycle = cycle_label) %>%
+  select(-indhhin2, -dmdeduc2, -riagendr, -ridageyr, -dmdeduc3, -ridreth3) %>%
+    filter(gender == "Female")
+}
+
+#now running the data frames through this 
+#demo_09_10_label <- clean_label(demo_09_10_clean, "2009-2010") 
+#taking out 09_10 for now because they used a different race scheme
+demo_11_12_label <- clean_label(demo_11_12_clean, "2011-2012")
+demo_13_14_label <- clean_label(demo_13_14_clean, "2013-2014")
+demo_15_16_label <- clean_label(demo_15_16_clean, "2015-2016")
+demo_17_18_label <- clean_label(demo_17_18_clean, "2017-2018")
+```
+
+```{r, include= FALSE}
+#all years
+demo_all_table = bind_rows (demo_11_12_label, demo_13_14_label, demo_15_16_label, demo_17_18_label)
+
+demo_all_table %>%
+  select(gender, race_eth, edu_adult, edu_youth, income) %>%
+  tbl_summary(
+    missing = "ifany",
+    label = list(
+      gender ~ "Gender",
+      race_eth ~ "Race / Ethnicity",
+      edu_adult ~ "Adult Education",
+      edu_youth ~ "Youth Education",
+      income ~ "Household Income")) %>%
+  bold_labels() %>%
+  as_gt()
+```
+
+This table describes demographic characteristics for all female participants in our study, from 2011-2018, for a total of 19,848 participants. When available, information on race/ethnicity, education attainment (split by adults >=20, or youth <=19), and household income is reported. 
+```{r all_years_table, echo=FALSE, message=FALSE, warning=FALSE}
+cat("NHANES Demographics: All Years (2011-2018)")
+demo_all_table %>%
+  select(gender, age, race_eth, edu_adult, edu_youth, income) %>%
+  tbl_summary(
+    missing = "ifany",
+    label = list(
+      gender ~ "Gender",
+      age ~ "Age",
+      race_eth ~ "Race / Ethnicity",
+      edu_adult ~ "Adult Education",
+      edu_youth ~ "Youth Education",
+      income ~ "Household Income")) %>%
+  bold_labels() %>%
+  as_gt()
+```
+
