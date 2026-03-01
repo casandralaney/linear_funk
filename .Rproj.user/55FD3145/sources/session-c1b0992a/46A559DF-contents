@@ -1,0 +1,659 @@
+---
+title: "Case-crossover study design"
+subtitle: "Session 2 • Advanced Analytic Methods for Environmental Epidemiology"
+author: "Robbie M. Parks, Grace V. Santos"
+date: "February 2 2026"
+format: html
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+# Packages
+library(here)
+library(readr)
+library(dplyr)
+library(survival)
+library(splines)
+library(pspline)
+library(ggplot2)
+library(lubridate)
+```
+
+## Goal of this computing lab session
+
+This lab introduces **case-crossover** designs and **conditional logistic regression** for estimating short-term (daily) exposure effects on acute events. We’ll start with a quick logistic regression refresher using county-level data, then move to a case-crossover dataset for NYC acute cardiovascular admissions.
+
+## What's going to happen in this lab session?
+
+### Pre-Class Material
+0. Preparation  
+1. Define research question  
+2. Logistic model refresher  
+3. Examine case-crossover data structure  
+
+### Live Session Material
+4. Define research question  
+5. Case-crossover analysis  
+6. Non-linearity in case-crossover  
+7. Breakout exercises  
+
+### Bonus Material
+- Choosing df for confounders  
+- `clogit()` vs `coxph()`  
+- Condensed dataset with area-level exposure  
+- Diagnostics and interpretation
+
+---
+
+# Pre-Class Material
+
+## 0. Preparation
+
+### 0a. Install packages (if needed)
+
+```{r, eval=FALSE}
+# install.packages(c("survival", "lubridate", "splines", "pspline", "ggplot2", "dplyr", "readr", "here"))
+```
+
+### 0b. Set project paths (using `here()`)
+
+Make sure you are working inside an RStudio Project so `here()` points to the top of your project.
+
+```{r}
+DataPath      <- here::here('labs','W2','data')
+OutputPath    <- here::here('labs','W2',"output")
+dir.create(OutputPath, showWarnings = FALSE, recursive = TRUE)
+```
+
+---
+
+## 1. Define research question (logistic refresher)
+
+Does PM2.5 increase the likelihood that a county's average BMI is **greater than 28 kg/m²**?
+
+We will:
+1) dichotomize average BMI into `AveObese` (1 if `AveBMI > 28`, else 0), and  
+2) fit a logistic regression model for `AveObese`.
+
+---
+
+## 2. Logistic model refresher
+
+### 2a. Load county-level data
+
+```{r}
+dta <- read_csv(file.path(DataPath, "2010_County_Data.csv"))
+```
+
+### 2b. Keep only complete cases
+
+```{r}
+dta <- dta %>% filter(complete.cases(dta))
+```
+
+### 2c. Create a dichotomous outcome
+
+```{r}
+dta <- dta %>%
+  mutate(AveObese = if_else(AveBMI > 28, 1, 0))
+```
+
+### 2d. Fit the logistic regression model
+
+```{r}
+mod.log <- glm(
+  AveObese ~ AvePM + FemaleUnemp + MaleUnemp + LTHS + MedHInc +
+    MedHVal + PerBlack + PerLatinx + PerAsianAm + ClimateRegion,
+  family = binomial(link = "logit"),
+  data = dta
+)
+
+summary(mod.log)
+```
+
+### 2e. Compute the odds ratio and 95% CI for a 1-unit increase in PM2.5
+
+```{r}
+coeff.mat <- summary(mod.log)$coef
+
+coeff_pm <- coeff.mat["AvePM", "Estimate"]
+se_pm    <- coeff.mat["AvePM", "Std. Error"]
+
+fit.or <- exp(coeff_pm)
+lci.or <- exp(coeff_pm - 1.96 * se_pm)
+uci.or <- exp(coeff_pm + 1.96 * se_pm)
+
+cat(
+  paste0(
+    "Odds Ratio for 1 ug/m3 increase in PM2.5 and county-average BMI > 28 kg/m2:
+",
+    round(fit.or, 3), "  (95% CI: ", round(lci.or, 3), ", ", round(uci.or, 3), ")"
+  )
+)
+```
+
+::: {.callout-important}
+## Pre-class task: interpret the effect estimate
+- What is the interpretation of this odds ratio?  
+- Does the OR from this model approximate the risk ratio?  
+- What information can help you assess whether it approximates well?  
+
+> **Answer key**
+>
+> - **Interpretation:** The odds ratio is the multiplicative change in the *odds* that a county has average BMI > 28 kg/m² for a 1 µg/m³ increase in PM2.5 (holding other covariates fixed).
+> - **Does OR approximate RR?** Only when the outcome is **rare** (rough rule: prevalence < ~10%). If BMI > 28 is common, the OR can overstate the RR.
+> - **What helps you assess this?** The **baseline risk/prevalence** of BMI > 28 in the data (e.g., `mean(bmi_gt28)`), and how far it is from “rare”.
+:::
+
+### 2f. (Optional) Convert to percent change (odds) and 95% CI
+
+```{r}
+fit.pc <- 100 * (exp(coeff_pm) - 1)
+lci.pc <- 100 * (exp(coeff_pm - 1.96 * se_pm) - 1)
+uci.pc <- 100 * (exp(coeff_pm + 1.96 * se_pm) - 1)
+
+cat(
+  paste0(
+    "A 1 ug/m3 increase in PM2.5 is associated with a 
+",
+    round(fit.pc, 1), "% change in the odds that a county has average BMI > 28 kg/m2,
+",
+    "with 95% CI: (", round(lci.pc, 1), ", ", round(uci.pc, 1), ")"
+  )
+)
+```
+
+### 2g. Clean up (optional)
+
+```{r}
+rm(coeff.mat, mod.log, coeff_pm, fit.or, fit.pc, lci.or, lci.pc, se_pm, uci.or, uci.pc)
+```
+
+---
+
+## 3. Examine case-crossover data structure
+
+### 3a. Define research question
+
+What is the effect of short-term (daily) exposure to PM2.5 on **acute cardiovascular events**, on the **same day** as exposure?
+
+### 3b. Read in case-crossover dataset
+
+```{r}
+dta <- read_csv(file.path(DataPath, "NYC_dailyData_Subset.csv"))
+```
+
+### 3c. Order data by subject (strata)
+
+```{r}
+dta <- dta %>% arrange(SubjectID)
+```
+
+### 3d. Convert date column to datetime and extract calendar variables
+
+```{r}
+dta <- dta %>%
+  mutate(
+    DayDate   = parse_date_time(DayDate, "ymd"),
+    Month     = as.character(month(DayDate, label = TRUE)),
+    DayofWeek = as.character(wday(DayDate, label = TRUE))
+  )
+```
+
+### 3e. Inspect structure
+
+```{r}
+dim(dta)
+head(dta)
+tail(dta)
+```
+
+::: {.callout-important}
+## Pre-class task: review data structure
+- Look at `SubjectID` and `DayName`: how were controls matched?  
+- How many controls per case?  
+- How many cases are in the dataset?  
+- How many strata (matched case-control sets)?  
+- What is the average PM2.5 among cases? Among controls?  
+
+*Hints:* `unique()` counts unique values; `length()` counts elements.
+
+> **Answer key (how to verify in code)**
+>
+> - **How were controls matched?** Inspect `DayName` (e.g., same day-of-week within a time stratum such as month) and confirm controls share the same `SubjectID` as the case.
+> - **Controls per case:** Typically fixed (often 3–4) in a time-stratified case-crossover; compute from the data with the code below.
+>
+> ```{r}
+> # how many rows per SubjectID? (case + controls)
+> dta %>%
+>   count(SubjectID) %>%
+>   summarise(min_n = min(n), max_n = max(n), median_n = median(n))
+>
+> # controls per case (assuming 1 case per SubjectID)
+> dta %>%
+>   group_by(SubjectID) %>%
+>   summarise(n_case = sum(Case == 1), n_ctrl = sum(Case == 0), .groups = "drop") %>%
+>   summarise(
+>     median_ctrl = median(n_ctrl),
+>     min_ctrl = min(n_ctrl),
+>     max_ctrl = max(n_ctrl)
+>   )
+>
+> # how many cases / strata?
+> n_cases  <- sum(dta$Case == 1)
+> n_strata <- n_distinct(dta$SubjectID)
+> c(n_cases = n_cases, n_strata = n_strata)
+>
+> # mean PM among cases vs controls
+> dta %>%
+>   group_by(Case) %>%
+>   summarise(mean_pm = mean(dailyPM, na.rm = TRUE), .groups = "drop")
+> ```
+
+:::
+
+### 3f. Simple time-series plot of PM trend (case days only)
+
+```{r}
+Cases <- dta %>%
+  filter(Case == 1) %>%
+  select(DayDate, dailyPM) %>%
+  distinct()
+
+ggplot(Cases, aes(DayDate, dailyPM)) +
+  geom_point() +
+  geom_smooth()
+```
+
+::: {.callout-important}
+## Pre-class task: review time trends
+What is the trend of PM over time?
+
+> **Answer key**
+>
+> PM typically shows **strong temporal structure** (seasonality and short-term spikes). In a case-crossover, the *matching strategy* (e.g., time-stratified matching within month + day-of-week) is designed to control for long-term/seasonal trends, but it’s still good practice to visualize the series and confirm there isn’t obvious residual structure you failed to account for.
+:::
+
+```{r}
+rm(Cases)
+```
+
+---
+
+# Live Session Material
+
+## 4. Define research question
+
+What is the effect of same-day PM2.5 on the risk of acute cardiovascular events?
+
+---
+
+## 5. Case-crossover analysis (conditional logistic regression)
+
+::: {.callout-question}
+## Class question 0
+- Which variable represents the **strata**?  
+- Which variable represents **case/control status**?  
+- Any questions about the data structure?  
+
+> **Answer key**
+>
+> - **Strata:** `SubjectID` (each person’s matched case + control days).
+> - **Case/control status:** `Case` (1 = case day, 0 = control day). `DayName` is a label describing case vs which matched control day.
+> - **Data structure:** Each row is a day for a given person; controls are selected to match the case day on calendar/time features (time-stratified matching), so comparisons are **within-person**.
+:::
+
+### 5a. Fit a linear PM model (with spline confounders; covered in Week 4)
+
+We start by assuming **linear** association for `dailyPM`. We adjust for temperature and RH using natural splines.
+
+```{r}
+mod.clogit.lin <- clogit(
+  Case ~ dailyPM + ns(dailyTemp, df = 3) + ns(dailyRH, df = 4) +
+    strata(SubjectID),
+  method = "efron",
+  data = dta
+)
+
+summary(mod.clogit.lin)
+```
+
+::: {.callout-question}
+## Class question 1
+A) What is our unit of analysis?  
+B) Why do we adjust for daily temperature? Why a natural spline?  
+C) Why don’t we adjust for SES (time-invariant confounders)?  
+
+> **Answer key** 
+>
+> A) **Unit of analysis:** the **individual** — we compare each person to themselves across their case day vs matched control days.
+>
+> B) **Why adjust for daily temperature? Why a natural spline?** Temperature varies day-to-day and can affect acute cardiovascular events; it can also be correlated with air pollution. We use a **natural spline** because the temperature–health association is often **non-linear**.
+>
+> C) **Why not adjust for SES (time-invariant confounders)?** Case-crossover is **within-person**, so factors that are essentially constant over the matching window (e.g., SES) are controlled by design.
+:::
+
+### 5b. Extract odds ratio for PM2.5
+
+```{r}
+coeff.mat <- summary(mod.clogit.lin)$coef
+
+coeff_pm <- coeff.mat["dailyPM", "coef"]
+se_pm    <- coeff.mat["dailyPM", "se(coef)"]
+
+fit.or <- exp(coeff_pm)
+lci.or <- exp(coeff_pm - 1.96 * se_pm)
+uci.or <- exp(coeff_pm + 1.96 * se_pm)
+
+paste0(round(fit.or, 4), " (95% CI: ", round(lci.or, 4), ", ", round(uci.or, 4), ")")
+```
+
+::: {.callout-question}
+## Class question 2
+What is the interpretation of this odds ratio?
+
+> **Answer key** 
+
+> A **1 µg/m³ increase** in daily city-wide average PM2.5 is associated with **exp(β\_PM)** times the odds of a cardiovascular hospitalization (case day vs control day), **conditional on** the matched set (stratum) and adjusted for the spline terms.
+>
+> *Example:* exp(β) ≈ 1.0008, meaning about a **0.08% increase in odds** per 1 µg/m³, with a 95% CI roughly (1.0003, 1.0014).
+:::
+
+### 5c. Odds ratio for a 10-unit increase in PM2.5
+
+```{r}
+fit.or.10 <- exp(10 * coeff_pm)
+lci.or.10 <- exp(10 * (coeff_pm - 1.96 * se_pm))
+uci.or.10 <- exp(10 * (coeff_pm + 1.96 * se_pm))
+
+paste0(round(fit.or.10, 4), " (95% CI: ", round(lci.or.10, 4), ", ", round(uci.or.10, 4), ")")
+```
+
+### 5d. Plot estimated association (linear PM)
+
+```{r}
+ptemp <- predict(mod.clogit.lin, type = "terms", se.fit = TRUE)
+
+# predict(..., type="terms", se.fit=TRUE) returns matrices:
+#   ptemp$fit   = term contributions (on log-odds scale)
+#   ptemp$se.fit = SE for each term contribution
+term_mat <- as.data.frame(ptemp$fit)
+se_mat   <- as.data.frame(ptemp$se.fit)
+
+# Because your model is: Case ~ dailyPM + ns(dailyTemp, ...) + ns(dailyRH, ...) + strata(...)
+# the FIRST term column corresponds to dailyPM
+pm_term_col <- 1
+
+dta.pred <- dta %>%
+  mutate(
+    term_pm = term_mat[[pm_term_col]],
+    se_pm   = se_mat[[pm_term_col]],
+    fit.or  = exp(term_pm),
+    lci.or  = exp(term_pm - 1.96 * se_pm),
+    uci.or  = exp(term_pm + 1.96 * se_pm)
+  )
+
+dta.pred %>%
+  sample_frac(0.1) %>%
+  ggplot(aes(x = dailyPM)) +
+  geom_line(aes(y = fit.or), linewidth = 1) +
+  geom_line(aes(y = lci.or), linetype = "dashed") +
+  geom_line(aes(y = uci.or), linetype = "dashed") +
+  geom_rug(alpha = 0.3) +
+  xlab(expression("Daily PM"[2.5])) +
+  ylab("Odds Ratio of CVD admission")
+```
+
+::: {.callout-question}
+## Class question 3
+Looking at this plot, what is one major assumption of the model?
+
+> **Answer key** 
+>
+> The major assumption is **linearity**: the model assumes a **linear** association between daily PM2.5 and the log-odds (and therefore the OR) across the observed PM range.
+:::
+
+---
+
+## 6. Non-linearity in case-crossover (covered in more detail in Week 4)
+
+### 6a. Fit a natural spline for PM2.5 
+
+```{r}
+mod.clogit.ns3 <- clogit(
+  Case ~ ns(dailyPM, df = 3) + ns(dailyTemp, df = 3) + ns(dailyRH, df = 4) +
+    strata(SubjectID),
+  method = "efron",
+  data = dta
+)
+
+summary(mod.clogit.ns3)
+```
+
+### 6b. Plot non-linear exposure–response (PM spline)
+
+```{r}
+ptemp <- predict(mod.clogit.ns3, type = "terms", se.fit = TRUE)
+ptemp <- as.data.frame(ptemp)
+
+dta.pred <- bind_cols(dta, ptemp)
+
+pm_term_col <- grep("dailyPM|PM", names(ptemp), value = TRUE)[1]
+pm_se_col   <- grep("se", names(ptemp), value = TRUE)[1]
+
+dta.pred <- dta.pred %>%
+  mutate(
+    term_pm = .data[[pm_term_col]],
+    se_pm   = .data[[pm_se_col]],
+    fit.or  = exp(term_pm),
+    lci.or  = exp(term_pm - 1.96 * se_pm),
+    uci.or  = exp(term_pm + 1.96 * se_pm)
+  )
+
+dta.pred %>%
+  sample_frac(0.1) %>%
+  ggplot(aes(x = dailyPM)) +
+  geom_line(aes(y = fit.or), linewidth = 1) +
+  geom_line(aes(y = lci.or), linetype = "dashed") +
+  geom_line(aes(y = uci.or), linetype = "dashed") +
+  geom_rug(alpha = 0.3) +
+  xlab(expression("Daily PM"[2.5])) +
+  ylab("Odds of CVD admission")
+```
+
+### 6c. Compare model fit (AIC)
+
+```{r}
+AIC(mod.clogit.lin)
+AIC(mod.clogit.ns3)
+```
+
+::: {.callout-question}
+## Class question 4
+Based on the plot, describe the exposure–response relationship qualitatively.  
+
+> **Answer key** 
+>
+> **Qualitative shape:** PM2.5 is associated with **increasing** CVD hospitalizations for PM2.5 **up to ~10 µg/m³**, then a plateau (as shown in the spline plot).
+:::
+
+---
+
+## 7. Breakout exercise
+
+Conduct a case-crossover analysis to estimate the association between **same-day temperature** and CVD.
+
+- Use a **linear** term for temperature. (Does this make sense?)
+- Plot the association.
+- Qualitatively describe the pattern.
+
+*Hint:* Because temperature affects PM2.5 formation, you may choose **not** to adjust for PM2.5 in this temperature model.
+
+*Optional:* You can try a  **non-linear** term for temperature if you really want and have time, but we will go into fuller detail in Week 4 so I wouldn't worry too much about it.
+
+```{r}
+mod.clogit.lin <- clogit(
+  Case ~ dailyTemp + ns(dailyRH, df = 4) +
+    strata(SubjectID),
+  method = "efron",
+  data = dta
+)
+
+summary(mod.clogit.lin)
+
+ptemp <- predict(mod.clogit.lin, type = "terms", se.fit = TRUE)
+
+# predict(..., type="terms", se.fit=TRUE) returns matrices:
+#   ptemp$fit   = term contributions (on log-odds scale)
+#   ptemp$se.fit = SE for each term contribution
+term_mat <- as.data.frame(ptemp$fit)
+se_mat   <- as.data.frame(ptemp$se.fit)
+
+# Because your model is: Case ~ dailyTemp + ns(dailyRH, ...) + strata(...)
+# the FIRST term column corresponds to dailyTemp
+temp_term_col <- 1
+
+dta.pred <- dta %>%
+  mutate(
+    term_temp = term_mat[[temp_term_col]],
+    se_pm   = se_mat[[temp_term_col]],
+    fit.or  = exp(term_temp),
+    lci.or  = exp(term_temp - 1.96 * se_pm),
+    uci.or  = exp(term_temp + 1.96 * se_pm)
+  )
+
+dta.pred %>%
+  sample_frac(0.1) %>%
+  ggplot(aes(x = dailyTemp)) +
+  geom_line(aes(y = fit.or), linewidth = 1) +
+  geom_line(aes(y = lci.or), linetype = "dashed") +
+  geom_line(aes(y = uci.or), linetype = "dashed") +
+  geom_rug(alpha = 0.3) +
+  xlab(expression("Daily temperature (°C)")) +
+  ylab("Odds Ratio of CVD admission")
+```
+
+---
+
+## 8. Bonus exercises
+
+Apply the concepts and tools from this lab to further explore case-crossover methods
+and short-term exposure effects.
+
+1. **Degrees of freedom sensitivity**  
+   Refit the main case-crossover model using alternative degrees of freedom for
+   temperature and relative humidity. Compare model fit (e.g., AIC) and describe
+   how sensitive the PM2.5 estimate is to these choices.
+   
+> **Bonus exercise 1 — Degrees of freedom sensitivity**  
+> Refit the main case-crossover model using alternative degrees of freedom for
+> temperature and relative humidity. Compare model fit (e.g., AIC) and describe
+> how sensitive the PM2.5 estimate is to these choices.
+
+**Answer key (one practical workflow):** fit a small grid of df choices, compare AIC, and track the PM2.5 coefficient / OR.
+
+```{r}
+# Choose a small, plausible grid (avoid implausibly wiggly curves)
+df_temp_grid <- c(2, 3, 4)
+df_rh_grid   <- c(3, 4, 5)
+
+# Helper to extract PM effect quickly
+get_pm <- function(mod){
+  cf <- summary(mod)$coef
+  beta <- cf["dailyPM", "coef"]
+  se   <- cf["dailyPM", "se(coef)"]
+  or   <- exp(beta)
+  lci  <- exp(beta - 1.96*se)
+  uci  <- exp(beta + 1.96*se)
+  out <- data.frame(beta = beta, se = se, OR = or, LCI = lci, UCI = uci)
+  out
+}
+
+grid_res <- expand.grid(df_temp = df_temp_grid, df_rh = df_rh_grid)
+
+grid_fit <- dplyr::bind_rows(lapply(seq_len(nrow(grid_res)), function(i){
+  df_temp <- grid_res$df_temp[i]
+  df_rh   <- grid_res$df_rh[i]
+
+  mod <- clogit(
+    Case ~ dailyPM + ns(dailyTemp, df = df_temp) + ns(dailyRH, df = df_rh) +
+      strata(DayofWeek),
+    weights = dailyCVDin,
+    method  = "efron",
+    data    = dta
+  )
+
+  cbind(df_temp = df_temp,
+        df_rh   = df_rh,
+        AIC     = AIC(mod),
+        get_pm(mod))
+}))
+
+grid_fit %>%
+  arrange(AIC) %>%
+  dplyr::select(df_temp, df_rh, AIC, beta, OR, LCI, UCI) %>%
+  head(10)
+```
+
+**Interpretation guide:**  
+- If the **AIC changes** but the **PM2.5 OR is stable** across df choices, your PM estimate is likely **robust** to df selection.  
+- If the PM estimate shifts meaningfully with df (or the spline looks implausibly wiggly), report that sensitivity and justify a parsimonious choice.
+
+2. **Model formulation comparison**  
+   Fit the same model using `coxph()` with stratification instead of `clogit()`.
+   Compare coefficient estimates and standard errors. Under what conditions do
+   the results agree?
+   
+**Answer key:** with appropriate setup (stratification and tie handling), `clogit()` and `coxph()` typically agree.
+
+```{r}
+mod.coxph <- coxph(
+  Surv(TimetoEvent, Case) ~ dailyPM + ns(dailyTemp, 3) + ns(dailyRH, 4) + strata(SubjectID),
+  weights = dailyCVDin,
+  data = dta
+)
+
+mod.clogit <- clogit(
+  Case ~ dailyPM + ns(dailyTemp, 3) + ns(dailyRH, 4) + strata(SubjectID),
+  weights = dailyCVDin,
+  method = "efron",
+  data = dta
+)
+
+summary(mod.coxph)$coef["dailyPM", ]
+summary(mod.clogit)$coef["dailyPM", ]
+```
+
+3. **Alternative exposure structure**  
+   If PM2.5 is shared across individuals on the same day, explore whether the data
+   can be condensed by day using event counts and weights. Compare results to the
+   individual-level analysis.
+
+**Answer key:** if exposure is area-level, you can collapse to *day-level strata* and use weights = number of events.
+
+```{r}
+# If your dataset is already condensed (one row per case/control day), dailyCVD is the count.
+# Fit the day-level weighted model:
+mod.daylevel <- clogit(
+  Case ~ dailyPM + ns(dailyTemp, df = 3) + ns(dailyRH, df = 4) + strata(SubjectID),
+  weights = dailyCVDin,
+  method  = "efron",
+  data    = dta
+)
+
+summary(mod.daylevel)$coef["dailyPM", ]
+```
+
+4. **Diagnostics and interpretation**  
+   Create one additional diagnostic or visualization (e.g., influence by strata,
+   exposure distribution on case vs control days) and briefly interpret what it
+   suggests about model assumptions.
+
+**Answer key (example diagnostic):** compare the PM distribution on case vs control days, and flag high-influence observations via dfbeta.
+
+```{r}
+# Exposure distribution: case vs control days
+ggplot(dta, aes(x = factor(Case), y = dailyPM)) +
+  geom_boxplot() +
+  xlab("Case day (1) vs control day (0)") +
+  ylab(expression("Daily PM"[2.5]))
+```

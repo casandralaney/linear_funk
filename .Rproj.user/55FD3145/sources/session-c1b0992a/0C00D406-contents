@@ -1,0 +1,762 @@
+---
+title: "Introduction to Linear Regression"
+subtitle: "Session 1 • Advanced Analytic Methods for Environmental Epidemiology"
+author: "Robbie M. Parks, Grace V. Santos"
+date: "January 26 2026"
+format: html
+---
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
+library(here)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(broom)
+
+set.seed(1)
+```
+
+## Goal of this computing lab session
+
+This lab walks through a complete linear regression workflow using county-level data from 2010: data loading and exploration, visualization, model fitting, interpretation, diagnostics, and effect modification.
+
+## What's going to happen in this lab session?
+
+### Pre-Class Material
+
+0. Preparation  
+1. Examine data  
+2. Plot data  
+
+### Live Session Material
+
+3. Define a research question  
+4. Review data structure  
+5. Fit a regression model  
+6. Review model results  
+7. Assess model assumptions  
+8. Examine effect modification  
+9. Breakout exercises  
+
+### Bonus Material
+
+10. Data manipulation  
+11. Summarizing data  
+12. Bonus exercises  
+
+# Pre-Class Material
+
+## 0. Preparation
+
+### 0a. Declare folder paths (project-root via `here()`)
+
+Make sure you are working inside an RStudio Project so `here()` points to the top of your project.
+
+```{r}
+DataPath      <- here::here('labs','W1','data')
+OutputPath    <- here::here('labs','W1',"output")
+dir.create(OutputPath, showWarnings = FALSE, recursive = TRUE)
+```
+
+### 0b. Read in data
+
+```{r}
+#| label: read-data
+dta <- readr::read_csv(here::here(DataPath,"Lab1_2010_County_Data.csv"))
+```
+
+> **Pre-class task:** confirm dimensions  
+> Check the dimensions of the dataset. You should have **15 columns** and **500 rows**.
+
+```{r}
+dim(dta)
+names(dta)
+head(dta)
+```
+
+### 0c. Variable codebook (reference)
+
+- **FIPS**: unique identifier for each county  
+- **AveBMI**: county average BMI (BRFSS; kg/m²)  
+- **AvePM**: annual average PM2.5 (AQS; μg/m³)  
+- **NumTot**: total population  
+- **PerBlack, PerLatinx, PerAsam, PerWhite**: racial composition  
+- **MedHInc**: median household income  
+- **MedHVal**: median household value (homeowners)  
+- **FemaleUnemp, MaleUnemp**: unemployment rate by sex  
+- **LTHS**: % adults with less than high school education  
+- **ClimateRegion**: NOAA climate region category  
+
+## 1. Examine data
+
+```{r}
+dta$AvePM[1:10]
+mode(dta$AvePM)
+length(dta$AvePM)
+
+# Row/column indexing examples
+dta[1, 2]
+row1    <- dta[1, ]
+column1 <- dta[, 1]
+
+# Create a new variable
+dta$AveBMI_sq <- dta$AveBMI * dta$AveBMI
+
+# Summaries
+mean(dta$AvePM, na.rm = TRUE)
+summary(dta)
+```
+
+> **Pre-class task:** confirm `AvePM` min/max  
+> min should be **3.866667** and max should be **16.07774**.
+
+```{r}
+min(dta$AvePM, na.rm = TRUE)
+max(dta$AvePM, na.rm = TRUE)
+```
+
+## 2. Plot data
+
+### 2a. Histograms and density
+
+```{r}
+hist(dta$AveBMI)
+
+hist(dta$AveBMI, breaks = 20,
+     xlab = "Average BMI",
+     ylab = "Count of Counties",
+     main = "Histogram of Average BMI",
+     las = 1)
+
+plot(density(dta$AveBMI, na.rm = TRUE), las = 1)
+
+hist(dta$AveBMI, breaks = 20,
+     xlab = "Average BMI",
+     ylab = "Density",
+     main = "Histogram of Average BMI",
+     freq = FALSE, las = 1)
+lines(density(dta$AveBMI, na.rm = TRUE))
+```
+
+### 2b. Boxplots
+
+```{r}
+boxplot(dta$AvePM,
+        xlab = "Nationwide",
+        ylab = expression("Average PM"[2.5]))
+
+boxplot(split(dta$AvePM, dta$ClimateRegion),
+        xlab = "NOAA Climate Region",
+        ylab = expression("Annual PM"[2.5]))
+```
+
+### 2c. Scatterplot
+
+```{r}
+plot(x = dta$AvePM,
+     y = dta$AveBMI,
+     xlab = expression("Average PM"[2.5]),
+     ylab = "Average BMI",
+     main = "Scatterplot: County-average PM vs. BMI")
+
+abline(lm(AveBMI ~ AvePM, data = dta), lwd = 2)
+```
+
+### 2d. Multiple plots on one page
+
+```{r}
+par(mfrow = c(1, 2), las = 1)
+
+boxplot(split(dta$AvePM, dta$ClimateRegion),
+        xlab = "NOAA Climate Region",
+        ylab = expression("Average PM"[2.5]),
+        main = expression("Average PM"[2.5]*" Across Climate Regions"))
+
+plot(dta$AvePM, dta$AveBMI,
+     xlab = expression("Average PM"[2.5]),
+     ylab = "Average BMI",
+     main = "Scatterplot: County-average PM vs. BMI")
+
+par(mfrow = c(1, 1))
+```
+
+### 2e. Save plots
+
+```{r}
+png(file.path(OutputPath, "hist_AveBMI.png"), width = 1200, height = 900, res = 150)
+hist(dta$AveBMI, breaks = 20,
+     xlab = "Average BMI", ylab = "Density",
+     main = "Histogram of Average BMI",
+     freq = FALSE, las = 1)
+lines(density(dta$AveBMI, na.rm = TRUE))
+dev.off()
+
+png(file.path(OutputPath, "scatter_AvePM_AveBMI.png"), width = 1200, height = 900, res = 150)
+plot(dta$AvePM, dta$AveBMI,
+     xlab = expression("Average PM"[2.5]),
+     ylab = "Average BMI",
+     main = "Scatterplot: County-average PM vs. BMI")
+abline(lm(AveBMI ~ AvePM, data = dta), lwd = 2)
+dev.off()
+```
+
+> **Pre-class task:** plot `AvePM` and save outputs  
+> A) Histogram of `AvePM`  
+> B) Scatterplot of `AvePM` (x-axis) vs `AveBMI` (y-axis)  
+> C) Save both as `.png` files in `output/`.
+
+```{r}
+png(file.path(OutputPath, "hist_AvePM.png"), width = 1200, height = 900, res = 150)
+hist(dta$AvePM, breaks = 20,
+     xlab = expression("Average PM"[2.5]),
+     main = "Histogram of Average PM2.5",
+     las = 1)
+dev.off()
+
+png(file.path(OutputPath, "scatter_AvePM_AveBMI_preclass.png"), width = 1200, height = 900, res = 150)
+plot(dta$AvePM, dta$AveBMI,
+     xlab = expression("Average PM"[2.5]),
+     ylab = "Average BMI",
+     main = "Scatterplot: County-average PM vs. BMI")
+dev.off()
+```
+
+# Live Session Material
+
+## 3. Define research question
+
+In 2010, was county-average BMI associated with county-average annual PM2.5?
+
+## 4. Review data structure
+
+```{r}
+summary(dta$AveBMI)
+
+hist(dta$AveBMI, freq = FALSE, xlab = "Average BMI", ylab = "Density", las = 1)
+lines(density(dta$AveBMI, na.rm = TRUE))
+
+LargestBMI <- dta[dta$AveBMI == max(dta$AveBMI, na.rm = TRUE), ]
+LargestBMI
+
+plot(x = dta$AvePM,
+     y = dta$AveBMI,
+     xlab = expression("Average PM"[2.5]),
+     ylab = "Average BMI",
+     main = "Scatterplot: County-average PM2.5 vs. BMI")
+```
+
+> **Class questions**  
+
+> - Are PM2.5 and BMI positively correlated?  
+**Correlation:** PM2.5 and BMI appear **positively** correlated, but **not very strongly**.  
+
+> - Does it look strongly correlated?  
+**Visual strength:** The scatter suggests a **modest** relationship with substantial variability.  
+
+> - Will the adjusted regression association equal the unadjusted correlation?
+**Adjusted vs unadjusted:** The adjusted regression association will **not necessarily equal** the unadjusted correlation because regression **conditions on covariates** (confounding control), while correlation does not.
+
+
+## 5. Fit regression model
+
+```{r}
+mod <- lm(AveBMI ~ AvePM + PerBlack + PerLatinx + PerAsianAm +
+            MedHInc + MedHVal + LTHS + FemaleUnemp + MaleUnemp + ClimateRegion,
+          data = dta,
+          na.action = na.omit)
+```
+
+## 6. Review model results
+
+```{r}
+summary(mod)
+table(dta$ClimateRegion)
+
+names(mod)
+names(summary(mod))
+
+summary(mod)$coefficients
+summary(mod)$coefficients[2, ]
+summary(mod)$coefficients[2, 1]
+```
+
+### 6a. 95% CI for `AvePM`
+
+```{r}
+Beta.pm.fit <- summary(mod)$coefficients["AvePM", "Estimate"]
+Beta.pm.se  <- summary(mod)$coefficients["AvePM", "Std. Error"]
+Beta.pm.lci <- Beta.pm.fit - 1.96 * Beta.pm.se
+Beta.pm.uci <- Beta.pm.fit + 1.96 * Beta.pm.se
+
+c(estimate = Beta.pm.fit, lci = Beta.pm.lci, uci = Beta.pm.uci)
+```
+
+### 6b. Tidy model objects with `broom`
+
+```{r}
+mod.tidy    <- tidy(mod)
+modfit.tidy <- glance(mod)
+
+mod.tidy
+modfit.tidy
+```
+
+### 6c. Visualize the association
+
+```{r}
+AvePM.range <- seq(min(dta$AvePM, na.rm = TRUE), max(dta$AvePM, na.rm = TRUE), by = 0.1)
+ChangeBMI   <- AvePM.range * Beta.pm.fit
+
+plot(AvePM.range, ChangeBMI,
+     xlim = c(0, max(dta$AvePM, na.rm = TRUE)),
+     ylim = c(0, max(dta$AvePM, na.rm = TRUE) * Beta.pm.uci),
+     xlab = expression("Average PM"[2.5]),
+     ylab = "Associated change in\nAverage BMI")
+
+abline(a = 0, b = Beta.pm.fit, lwd = 2)
+abline(a = 0, b = Beta.pm.lci, lwd = 1)
+abline(a = 0, b = Beta.pm.uci, lwd = 1)
+```
+
+## 7. Assess model assumptions
+
+> **Class question — answer: four assumptions of a linear model**  
+> 1. **Linearity** (mean of outcome is a linear function of predictors)  
+> 2. **Independence** (errors are independent)  
+> 3. **Homoscedasticity** (constant error variance)  
+> 4. **Normality of errors** (errors approximately normal, mainly for inference)
+
+### 7a. Residual distribution
+
+```{r}
+par(mfrow = c(3, 1))
+plot(mod$residuals)
+hist(mod$residuals)
+plot(density(mod$residuals))
+par(mfrow = c(1, 1))
+```
+
+### 7b. Diagnostic plots
+
+```{r}
+par(mfrow = c(2, 2))
+plot(mod)
+par(mfrow = c(1, 1))
+```
+
+### 7c. Hand-coded diagnostics
+
+```{r}
+FittedValues <- fitted(mod)
+Residuals    <- residuals(mod)
+
+par(mfrow = c(2, 2))
+plot(FittedValues, Residuals, main = "Residuals vs Fitted")
+
+qqnorm(Residuals); qqline(Residuals)
+
+RootStandardResiduals <- sqrt(abs(scale(resid(mod))))
+plot(FittedValues, RootStandardResiduals, main = "Scale-Location")
+
+Leverage          <- hat(model.matrix(mod))
+StandardResiduals <- scale(resid(mod))
+plot(Leverage, StandardResiduals,
+     xlab = "Leverage", ylab = "Standardized residuals",
+     main = "Residuals vs Leverage")
+abline(h = 0)
+par(mfrow = c(1, 1))
+```
+
+### 7d. Outliers and influence
+
+```{r}
+dta[169, ]
+
+dta.noOutliers <- dta[-c(169, 154), ]
+
+mod.noOutliers <- lm(AveBMI ~ AvePM + PerBlack + PerLatinx + PerAsianAm +
+                       MedHInc + MedHVal + LTHS + FemaleUnemp + MaleUnemp + ClimateRegion,
+                     data = dta.noOutliers, na.action = na.omit)
+
+summary(mod)
+summary(mod.noOutliers)
+
+Beta.pm.mod            <- summary(mod)$coefficients["AvePM", "Estimate"]
+Beta.pm.mod.noOutliers <- summary(mod.noOutliers)$coefficients["AvePM", "Estimate"]
+
+100 * (Beta.pm.mod - Beta.pm.mod.noOutliers) / Beta.pm.mod.noOutliers
+```
+
+## 8. Examine effect modification
+
+Does the PM2.5–BMI association vary by climate region?
+
+### 8a. Interaction model
+
+```{r}
+mod.interaction <- lm(AveBMI ~ AvePM * ClimateRegion + PerBlack + PerLatinx + PerAsianAm +
+                        MedHInc + MedHVal + LTHS + FemaleUnemp + MaleUnemp,
+                      data = dta.noOutliers, na.action = na.omit)
+
+summary(mod.interaction)
+```
+
+### 8b. Within-region estimate (Upper Midwest example)
+
+```{r}
+coef.mat <- summary(mod.interaction)$coefficients
+var.mat  <- vcov(mod.interaction)
+
+beta.PM_upper_midwest <- coef.mat["AvePM", "Estimate"] +
+  coef.mat["AvePM:ClimateRegionupper_midwest", "Estimate"]
+
+var.PM_upper_midwest <- var.mat["AvePM", "AvePM"] +
+  var.mat["AvePM:ClimateRegionupper_midwest", "AvePM:ClimateRegionupper_midwest"] +
+  2 * var.mat["AvePM", "AvePM:ClimateRegionupper_midwest"]
+
+se.PM_upper_midwest  <- sqrt(abs(var.PM_upper_midwest))
+lci.PM_upper_midwest <- beta.PM_upper_midwest - 1.96 * se.PM_upper_midwest
+uci.PM_upper_midwest <- beta.PM_upper_midwest + 1.96 * se.PM_upper_midwest
+
+paste0(round(beta.PM_upper_midwest, 3),
+       " (95% CI: ", round(lci.PM_upper_midwest, 3), ", ", round(uci.PM_upper_midwest, 3), ")")
+```
+
+### 8c. Likelihood ratio test
+
+```{r}
+anova(mod.noOutliers, mod.interaction, test = "LRT")
+```
+
+### 8d. Stratified model (Upper Midwest example)
+
+```{r}
+mod.stratified <- lm(AveBMI ~ AvePM + PerBlack + PerLatinx + PerAsianAm +
+                       MedHInc + MedHVal + LTHS + FemaleUnemp + MaleUnemp,
+                     data = dta.noOutliers, na.action = na.omit,
+                     subset = (ClimateRegion == "upper_midwest"))
+
+summary(mod.stratified)
+```
+
+## 9. Breakout exercises — answer key
+
+### 9.1 What is the effect estimate (95% CI) for `MedHVal`?  
+
+```{r}
+broom::tidy(mod, conf.int = TRUE) |>
+  dplyr::filter(term == "MedHVal") |>
+  dplyr::transmute(
+    term,
+    estimate  = round(estimate, 4),
+    conf.low  = round(conf.low, 4),
+    conf.high = round(conf.high, 4)
+  )
+```
+
+### 9.2 Compute the association and 95% CI for a **10 μg/m³** increase in `AvePM` in the main model.  
+
+```{r}
+pm <- broom::tidy(mod, conf.int = TRUE) |>
+  dplyr::filter(term == "AvePM")
+
+pm10 <- pm |>
+  dplyr::mutate(
+    estimate  = estimate  * 10,
+    conf.low  = conf.low  * 10,
+    conf.high = conf.high * 10
+  ) |>
+  dplyr::transmute(
+    contrast = "10 μg/m³ increase in AvePM",
+    estimate  = round(estimate, 4),
+    conf.low  = round(conf.low, 4),
+    conf.high = round(conf.high, 4)
+  )
+
+pm10
+```
+
+### 9.3 Fit an unadjusted model: `AveBMI ~ AvePM`.
+
+```{r}
+mod.unadj <- lm(AveBMI ~ AvePM, data = dta)
+
+broom::tidy(mod.unadj, conf.int = TRUE) |>
+  dplyr::filter(term == "AvePM") |>
+  dplyr::transmute(
+    model = "Unadjusted: AveBMI ~ AvePM",
+    estimate  = round(estimate, 4),
+    conf.low  = round(conf.low, 4),
+    conf.high = round(conf.high, 4)
+  )
+```
+
+### 9.4 What is the `AvePM` estimate (95% CI) in the **southeast** region?  
+
+```{r}
+region <- "southeast"
+
+coef.mat <- summary(mod.interaction)$coefficients
+var.mat  <- vcov(mod.interaction)
+
+term.int <- paste0("AvePM:ClimateRegion", region)
+
+# Region-specific slope for AvePM
+beta <- coef.mat["AvePM", "Estimate"] +
+  if (term.int %in% rownames(coef.mat)) coef.mat[term.int, "Estimate"] else 0
+
+# Variance of the region-specific slope (delta method)
+var.beta <- var.mat["AvePM", "AvePM"] +
+  if (term.int %in% rownames(var.mat)) var.mat[term.int, term.int] else 0 +
+  2 * if (term.int %in% rownames(var.mat)) var.mat["AvePM", term.int] else 0
+
+se  <- sqrt(abs(var.beta))
+lci <- beta - 1.96 * se
+uci <- beta + 1.96 * se
+
+tibble::tibble(
+  region   = region,
+  estimate = round(beta, 4),
+  conf.low = round(lci, 4),
+  conf.high= round(uci, 4)
+)
+```
+
+### 9.5 Challenge: Does the PM2.5–BMI association differ for counties above vs below the median `MaleUnemp`?
+
+```{r}
+MedianMaleUnemp <- median(dta$MaleUnemp, na.rm = TRUE)
+
+dta <- dta |>
+  dplyr::mutate(
+    MaleUnempAboveMedian = dplyr::if_else(
+      MaleUnemp > MedianMaleUnemp,
+      "Above median",
+      "Below median"
+    ),
+    MaleUnempAboveMedian = factor(MaleUnempAboveMedian, levels = c("Below median", "Above median"))
+  )
+
+# Model without interaction (but with the group main effect)
+mod.male.grp <- lm(
+  AveBMI ~ AvePM + MaleUnempAboveMedian +
+    PerBlack + PerLatinx + PerAsianAm +
+    MedHInc + MedHVal + LTHS + FemaleUnemp + ClimateRegion,
+  data = dta
+)
+
+# Model with interaction
+mod.male.int <- lm(
+  AveBMI ~ AvePM * MaleUnempAboveMedian +
+    PerBlack + PerLatinx + PerAsianAm +
+    MedHInc + MedHVal + LTHS + FemaleUnemp + ClimateRegion,
+  data = dta
+)
+
+# LRT for interaction
+anova(mod.male.grp, mod.male.int, test = "LRT")
+```
+
+```{r}
+# Extract stratum-specific slopes for AvePM
+b <- coef(mod.male.int)
+V <- vcov(mod.male.int)
+
+beta_below <- b["AvePM"]
+se_below   <- sqrt(V["AvePM", "AvePM"])
+
+term_int <- "AvePM:MaleUnempAboveMedianAbove median"
+beta_above <- beta_below + if (term_int %in% names(b)) b[term_int] else 0
+
+var_above <- V["AvePM", "AvePM"] +
+  if (term_int %in% rownames(V)) V[term_int, term_int] else 0 +
+  2 * if (term_int %in% rownames(V)) V["AvePM", term_int] else 0
+
+se_above <- sqrt(abs(var_above))
+
+tibble::tibble(
+  stratum  = c("Below median MaleUnemp", "Above median MaleUnemp"),
+  estimate = round(c(beta_below, beta_above), 4),
+  conf.low = round(c(beta_below - 1.96 * se_below, beta_above - 1.96 * se_above), 4),
+  conf.high= round(c(beta_below + 1.96 * se_below, beta_above + 1.96 * se_above), 4)
+)
+```
+
+# Bonus Material
+
+## 10. Data manipulation (optional)
+
+```{r}
+dta_bonus <- read_csv(file.path(DataPath, "county_pm_bmi_census.csv"))
+head(dta_bonus)
+```
+
+## 11. Summarizing data (optional examples)
+
+```{r}
+mean(dta$AvePM, na.rm = TRUE)
+median(dta$AvePM, na.rm = TRUE)
+quantile(dta$AvePM, probs = c(0.1, 0.9), na.rm = TRUE)
+```
+
+## 12. Bonus exercises — answer key
+
+### 12.1 **Unadjusted model**  
+
+Fit `AveBMI ~ AvePM`. Compare the estimate and 95% CI to the adjusted model.
+
+```{r}
+# Unadjusted (from Section 9)
+pm_unadj <- broom::tidy(mod.unadj, conf.int = TRUE) |>
+  dplyr::filter(term == "AvePM") |>
+  dplyr::mutate(model = "Unadjusted")
+
+# Adjusted main model
+pm_adj <- broom::tidy(mod, conf.int = TRUE) |>
+  dplyr::filter(term == "AvePM") |>
+  dplyr::mutate(model = "Adjusted (main model)")
+
+dplyr::bind_rows(pm_unadj, pm_adj) |>
+  dplyr::transmute(
+    model,
+    estimate  = round(estimate, 4),
+    conf.low  = round(conf.low, 4),
+    conf.high = round(conf.high, 4)
+  )
+```
+
+### 12.2 **Scaled exposure effect**  
+
+Recalculate the main model estimate and 95% CI for a **10 μg/m³** increase in PM2.5.
+
+```{r}
+pm10
+```
+
+### 12.3 **Sensitivity to extreme values**  
+
+Refit the main model after excluding counties in the top 1% of `AvePM`. How does the estimate change?
+
+```{r}
+cut99 <- quantile(dta$AvePM, probs = 0.99, na.rm = TRUE)
+
+dta.no_top1 <- dta |>
+  dplyr::filter(AvePM <= cut99)
+
+mod.no_top1 <- lm(
+  AveBMI ~ AvePM + PerBlack + PerLatinx + PerAsianAm +
+    MedHInc + MedHVal + LTHS + FemaleUnemp + MaleUnemp + ClimateRegion,
+  data = dta.no_top1
+)
+
+pm_main <- broom::tidy(mod, conf.int = TRUE) |>
+  dplyr::filter(term == "AvePM") |>
+  dplyr::mutate(model = "Main model (all counties)")
+
+pm_sens <- broom::tidy(mod.no_top1, conf.int = TRUE) |>
+  dplyr::filter(term == "AvePM") |>
+  dplyr::mutate(model = "Exclude top 1% AvePM")
+
+dplyr::bind_rows(pm_main, pm_sens) |>
+  dplyr::transmute(
+    model,
+    estimate  = round(estimate, 4),
+    conf.low  = round(conf.low, 4),
+    conf.high = round(conf.high, 4)
+  )
+```
+
+### **Effect modification**  
+
+Assess whether the PM2.5–BMI association differs above vs below the median `MedHInc`.
+
+```{r}
+MedianMedHInc <- median(dta$MedHInc, na.rm = TRUE)
+
+dta <- dta |>
+  dplyr::mutate(
+    MedHIncAboveMedian = dplyr::if_else(
+      MedHInc > MedianMedHInc,
+      "Above median",
+      "Below median"
+    ),
+    MedHIncAboveMedian = factor(MedHIncAboveMedian, levels = c("Below median", "Above median"))
+  )
+
+mod.income.grp <- lm(
+  AveBMI ~ AvePM + MedHIncAboveMedian +
+    PerBlack + PerLatinx + PerAsianAm +
+    MedHVal + LTHS + FemaleUnemp + MaleUnemp + ClimateRegion,
+  data = dta
+)
+
+mod.income.int <- lm(
+  AveBMI ~ AvePM * MedHIncAboveMedian +
+    PerBlack + PerLatinx + PerAsianAm +
+    MedHVal + LTHS + FemaleUnemp + MaleUnemp + ClimateRegion,
+  data = dta
+)
+
+# LRT for interaction
+anova(mod.income.grp, mod.income.int, test = "LRT")
+```
+
+```{r}
+# Stratum-specific slopes for AvePM
+b <- coef(mod.income.int)
+V <- vcov(mod.income.int)
+
+beta_below <- b["AvePM"]
+se_below   <- sqrt(V["AvePM", "AvePM"])
+
+term_int <- "AvePM:MedHIncAboveMedianAbove median"
+beta_above <- beta_below + if (term_int %in% names(b)) b[term_int] else 0
+
+var_above <- V["AvePM", "AvePM"] +
+  if (term_int %in% rownames(V)) V[term_int, term_int] else 0 +
+  2 * if (term_int %in% rownames(V)) V["AvePM", term_int] else 0
+
+se_above <- sqrt(abs(var_above))
+
+tibble::tibble(
+  stratum  = c("Below median MedHInc", "Above median MedHInc"),
+  estimate = round(c(beta_below, beta_above), 4),
+  conf.low = round(c(beta_below - 1.96 * se_below, beta_above - 1.96 * se_above), 4),
+  conf.high= round(c(beta_below + 1.96 * se_below, beta_above + 1.96 * se_above), 4)
+)
+```
+
+### **Diagnostics extension**  
+
+Create one additional diagnostic plot and briefly describe what it suggests about model assumptions.
+
+```{r}
+cd <- cooks.distance(mod)
+n  <- nobs(mod)
+flag <- which(cd > (4 / n))
+
+plot(cd, ylab = "Cook's distance", xlab = "Observation index")
+abline(h = 4 / n, lty = 2)
+
+tibble::tibble(
+  n_obs = n,
+  threshold = 4 / n,
+  n_flagged = length(flag),
+  flagged_indices = paste(flag, collapse = ", ")
+)
+```
+### Missing-data reminders
+
+```{r}
+a <- NA
+is.na(a)
+a <- c(1, NA, 2)
+is.na(a)
+
+mean(dta$FemaleUnemp)
+mean(dta$FemaleUnemp, na.rm = TRUE)
+cor(dta$FemaleUnemp, dta$MaleUnemp, use = "complete")
+
+a    <- 100
+dta  <- dta %>% mutate(AveBMI_rescaled = AveBMI * a)
+```
