@@ -1,0 +1,93 @@
+---
+title: "Preliminary Data Analyses"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load in libraries
+```{r}
+library(tidyverse)
+library(plyr)
+library(stargazer)
+library(pheatmap)
+```
+
+# Read in cleaned dataset
+```{r}
+data <- read_csv("data/datacleaned_1718.csv") |>
+  data.frame()
+```
+
+# Creating descriptive statistics table for phthalate values
+```{r}
+stargazer(data |>
+            select(MCNP:MBZP),
+          type = "text",
+          summary = TRUE,
+          summary.stat = c("n", "mean", "p25", "median", "p75"))
+```
+
+# Histograms to show the distribution of values for the phthalate metabolites
+```{r}
+data_long <- data %>%
+  pivot_longer(cols = MCNP:MBZP, 
+               names_to = "Metabolite", 
+               values_to = "Value")
+
+ggplot(data_long, aes(x = Value)) +
+  geom_histogram(fill = "pink", color = "darkred") +
+  facet_wrap(~ Metabolite, scales = "free") +
+  labs(title = "Distribution of Phthalate Metabolites (ng/mL)") +
+  theme_minimal()
+```
+
+# Plot the relationship between MCPP and menstruation
+```{r}
+ggplot(data, 
+       aes(x = MCPP, y = Age_FirstPeriod)) +
+  labs(title= "Relationship between MCPP and Age at First Period",
+       x = "MCPP",
+       y = "Age at First Period") +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_minimal()
+
+ggplot(data, 
+       aes(x = MCPP, y = Age_LastPeriod)) +
+  labs(title= "Relationship between MCPP and Age at Last Period",
+       x = "MCPP",
+       y = "Age at Last Period") +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  theme_minimal()
+
+```
+
+# Heatmap of correlations
+```{r}
+correlation_matrix = cor(data |> 
+                           select(Age_FirstPeriod, Age_LastPeriod), 
+                         data |>
+                           select(MCNP:MBZP)
+                         )
+
+corr_heatmap = pheatmap(correlation_matrix,
+                        color = colorRampPalette(c("lightpink", "darkred"))(50),
+                        number_color = "black",
+                        display_numbers = TRUE,
+                        cluster_rows = TRUE,
+                        cluster_cols = TRUE,
+                        main = "Heatmap of Age at First or Last Period x Phthalate Correlations")
+
+corr_heatmap
+```
+
+
+
+
+
+
+

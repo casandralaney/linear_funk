@@ -1,6 +1,5 @@
 ---
 title: "Data Cleaning"
-author: "Sijda Ahmed"
 output: pdf_document
 ---
 
@@ -15,6 +14,7 @@ library(haven)
 library(tidyverse)
 library(plyr)
 ```
+
 # Load in 2009-2010 datasets
 ```{r}
 demo_0910 <- read_xpt("data/2009_2010/DEMO_F.xpt")
