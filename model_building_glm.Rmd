@@ -1,18 +1,27 @@
 ---
-title: "Model Building"
+title: "Model Building- GLM Models"
 output: pdf_document
 ---
 
-# Prepare data for modeling
-```{r warning=FALSE, message = FALSE}
+# Load neccessary packages
+```{r}
 library(glmnet)
+```
 
+# Load in dataset and use 0/1 for binary variables
+```{r}
 data <- read.csv("data/data_clean.csv") |>
   data.frame() 
 
 data$UnablePregnant <- ifelse(data$UnablePregnant == "Yes", 1,
                               ifelse(data$UnablePregnant == "No", 0, NA))
 
+data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
+                              ifelse(data$RegularPeriod_12m == "No", 0, NA))
+```
+
+# Prepare data for modeling
+```{r warning=FALSE, message = FALSE}
 X <- model.matrix(UnablePregnant ~ SEQN + Age + Race + Age_FirstPeriod +
                   RegularPeriod_12m + Age_LastPeriod + MCNP + MCOP +
                   MECPP + MBP + MCPP + MEP + MEHHP + MEHP +
