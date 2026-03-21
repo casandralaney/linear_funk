@@ -4,8 +4,17 @@ output: pdf_document
 ---
 
 # Load neccessary packages
-```{r}
-
+```{r echo = T, message = FALSE, results='hide', warning=FALSE}
+library(tidyverse)
+library(tidymodels)
+library(ggplot2)
+library(purrr)
+library(caret)
+library(glmnet)
+library(mgcv)
+library(splines)
+library(pdp)
+library(earth)
 ```
 
 # Load in dataset and use 0/1 for binary variables
@@ -20,6 +29,60 @@ data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
                               ifelse(data$RegularPeriod_12m == "No", 0, NA))
 ```
 
+# Model using outome as Age_FirstPeriod (counts)
+```{r}
+# Fit model
+gam.m1 <- gam(Age_FirstPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                Year,
+              data = data,
+              family = poisson)
+summary(gam.m1)
 
+# Generate plots for the nonlinear terms included in the model
+plot(gam.m1)
+```
+
+# Model using outome as RegularPeriod_12m (binary)
+```{r}
+# Fit model
+gam.m2 <- gam(RegularPeriod_12m ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                Year,
+              data = data,
+              family = binomial)
+summary(gam.m2)
+
+# Generate plots for the nonlinear terms included in the model
+plot(gam.m2)
+```
+
+# Model using outome as Age_LastPeriod (counts)
+```{r}
+# Fit model
+gam.m3 <- gam(Age_LastPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                Year,
+              data = data,
+              family = poisson)
+summary(gam.m3)
+
+# Generate plots for the nonlinear terms included in the model
+plot(gam.m3)
+```
+
+# Model using outome as UnablePregnant (binary)
+```{r}
+# Fit model
+gam.m4 <- gam(UnablePregnant ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                Year,
+              data = data,
+              family = binomial)
+summary(gam.m4)
+
+# Generate plots for the nonlinear terms included in the model
+plot(gam.m4)
+```
 
 
