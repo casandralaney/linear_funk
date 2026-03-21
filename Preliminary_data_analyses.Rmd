@@ -17,7 +17,7 @@ library(pheatmap)
 
 # Read in cleaned dataset
 ```{r warning=FALSE, message = FALSE}
-data <- read_csv("data/datacleaned_1718.csv") |>
+data <- read_csv("data/data_clean.csv") |>
   data.frame()
 ```
 

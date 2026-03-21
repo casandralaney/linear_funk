@@ -7,7 +7,7 @@ output: pdf_document
 ```{r warning=FALSE, message = FALSE}
 library(glmnet)
 
-data <- read.csv("data/datacleaned_1718.csv") |>
+data <- read.csv("data/data_clean.csv") |>
   data.frame() 
 
 data$UnablePregnant <- ifelse(data$UnablePregnant == "Yes", 1,
