@@ -40,7 +40,7 @@ gam.m1 <- gam(Age_FirstPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MB
 summary(gam.m1)
 
 # Generate plots for the nonlinear terms included in the model
-plot(gam.m1, pages=6)
+plot(gam.m1, pages=4)
 ```
 
 # Model using outome as RegularPeriod_12m (binary)
@@ -54,7 +54,7 @@ gam.m2 <- gam(RegularPeriod_12m ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(
 summary(gam.m2)
 
 # Generate plots for the nonlinear terms included in the model
-plot(gam.m2, pages=6)
+plot(gam.m2, pages=4)
 ```
 
 # Model using outome as Age_LastPeriod (counts)
@@ -68,7 +68,7 @@ gam.m3 <- gam(Age_LastPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP
 summary(gam.m3)
 
 # Generate plots for the nonlinear terms included in the model
-plot(gam.m3, pages=6)
+plot(gam.m3, pages=4)
 ```
 
 # Model using outome as UnablePregnant (binary)
@@ -82,7 +82,7 @@ gam.m4 <- gam(UnablePregnant ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP
 summary(gam.m4)
 
 # Generate plots for the nonlinear terms included in the model
-plot(gam.m4, pages=6)
+plot(gam.m4, pages=4)
 ```
 
 
