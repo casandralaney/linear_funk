@@ -15,13 +15,6 @@ library(tidyverse)
 library(plyr)
 ```
 
-# Load in 2011-2012 datasets
-```{r}
-demo_1112 <- read_xpt("data/2011_2012/DEMO_G.xpt")
-rh_1112 <- read_xpt("data/2011_2012/RHQ_G.xpt")
-pht_1112 <- read_xpt("data/2011_2012/PHTHTE_G.xpt")
-```
-
 # Load in 2013-2014 datasets
 ```{r}
 demo_1314 <- read_xpt("data/2013_2014/DEMO_H.xpt")
@@ -29,11 +22,136 @@ rh_1314 <- read_xpt("data/2013_2014/RHQ_H.xpt")
 pht_1314 <- read_xpt("data/2013_2014/PHTHTE_H.xpt")
 ```
 
+# Clean 2013-2014 data
+```{r}
+# Select variables we will be using for our analysis
+# demographics
+demo_1314 <- demo_1314 |>
+  select(SEQN, RIDAGEYR, RIDRETH1)
+# reproductive health
+rh_1314 <- rh_1314 |>
+  select(SEQN, RHQ010, RHQ031, RHQ060, RHQ076)
+# phthalates
+pht_1314 <- pht_1314 |>
+  select(SEQN, URXCNP, URXCOP, URXECP, URXMBP, URXMC1, URXMEP, URXMHH, URXMHP, 
+         URXMIB, URXMOH, URXMZP)
+
+# Merge the data and remove NAs
+data_1314 <- demo_1314 %>%
+  full_join(rh_1314, by="SEQN") %>%
+  full_join(pht_1314, by="SEQN") 
+data_1314 <- na.omit(data_1314)
+colnames(data_1314) <- c("SEQN", "Age", "Race", "Age_FirstPeriod", "RegularPeriod_12m", 
+                         "Age_LastPeriod", "UnablePregnant", "MCNP", "MCOP", "MECPP", 
+                         "MBP", "MCPP", "MEP", "MEHHP", "MEHP", "MIBP", "MEOHP", "MBZP")
+
+# Drop missing values
+data_1314 <- data_1314 %>% 
+  filter(Age_FirstPeriod != 777) %>%
+  filter(Age_FirstPeriod != 999) %>%
+  filter(RegularPeriod_12m != 7) %>%
+  filter(RegularPeriod_12m != 9) %>%
+  filter(Age_LastPeriod != 777) %>%
+  filter(Age_LastPeriod != 999) %>%
+  filter(UnablePregnant != 7) %>%
+  filter(UnablePregnant != 9)
+
+# Recode variables (Race, RegularPeriod_12m, UnablePregnant)
+data_1314$Race <- factor(data_1314$Race)
+data_1314$Race <- revalue(data_1314$Race, c("1" = "Mexican_American",
+                                            "2" = "Other_Hispanic",
+                                            "3" = "NonHispanic_White",
+                                            "4" = "NonHispanic_Black",
+                                            "5" = "OtherRace_MultiRacial")
+                          )
+data_1314$RegularPeriod_12m <- factor(data_1314$RegularPeriod_12m)
+data_1314$RegularPeriod_12m <- revalue(data_1314$RegularPeriod_12m, c("1" = "Yes",
+                                                                      "2" = "No")
+                                       )
+data_1314$UnablePregnant <- factor(data_1314$UnablePregnant)
+data_1314$UnablePregnant <- revalue(data_1314$UnablePregnant, c("1" = "Yes",
+                                                                "2" = "No")
+                                    )
+
+# Summary of variables
+summary(data_1314)
+
+# Add column for the NHANES year this data is from
+data_1314 <- data_1314 |>
+  mutate(
+    "Year" = "2013-2014"
+  )
+
+```
+
+
 # Load in 2015-2016 datasets
 ```{r}
 demo_1516 <- read_xpt("data/2015_2016/DEMO_I.xpt")
 rh_1516 <- read_xpt("data/2015_2016/RHQ_I.xpt")
 pht_1516 <- read_xpt("data/2015_2016/PHTHTE_I.xpt")
+```
+
+# Clean 2015-2016 data
+```{r}
+# Select variables we will be using for our analysis
+# demographics
+demo_1516 <- demo_1516 |>
+  select(SEQN, RIDAGEYR, RIDRETH1)
+# reproductive health
+rh_1516 <- rh_1516 |>
+  select(SEQN, RHQ010, RHQ031, RHQ060, RHQ076)
+# phthalates
+pht_1516 <- pht_1516 |>
+  select(SEQN, URXCNP, URXCOP, URXECP, URXMBP, URXMC1, URXMEP, URXMHH, URXMHP, 
+         URXMIB, URXMOH, URXMZP)
+
+# Merge the data and remove NAs
+data_1516 <- demo_1516 %>%
+  full_join(rh_1516, by="SEQN") %>%
+  full_join(pht_1516, by="SEQN") 
+data_1516 <- na.omit(data_1516)
+colnames(data_1516) <- c("SEQN", "Age", "Race", "Age_FirstPeriod", "RegularPeriod_12m", 
+                         "Age_LastPeriod", "UnablePregnant", "MCNP", "MCOP", "MECPP", 
+                         "MBP", "MCPP", "MEP", "MEHHP", "MEHP", "MIBP", "MEOHP", "MBZP")
+
+# Drop missing values
+data_1516 <- data_1516 %>% 
+  filter(Age_FirstPeriod != 777) %>%
+  filter(Age_FirstPeriod != 999) %>%
+  filter(RegularPeriod_12m != 7) %>%
+  filter(RegularPeriod_12m != 9) %>%
+  filter(Age_LastPeriod != 777) %>%
+  filter(Age_LastPeriod != 999) %>%
+  filter(UnablePregnant != 7) %>%
+  filter(UnablePregnant != 9)
+
+# Recode variables (Race, RegularPeriod_12m, UnablePregnant)
+data_1516$Race <- factor(data_1516$Race)
+data_1516$Race <- revalue(data_1516$Race, c("1" = "Mexican_American",
+                                            "2" = "Other_Hispanic",
+                                            "3" = "NonHispanic_White",
+                                            "4" = "NonHispanic_Black",
+                                            "5" = "OtherRace_MultiRacial")
+                          )
+data_1516$RegularPeriod_12m <- factor(data_1516$RegularPeriod_12m)
+data_1516$RegularPeriod_12m <- revalue(data_1516$RegularPeriod_12m, c("1" = "Yes",
+                                                                      "2" = "No")
+                                       )
+data_1516$UnablePregnant <- factor(data_1516$UnablePregnant)
+data_1516$UnablePregnant <- revalue(data_1516$UnablePregnant, c("1" = "Yes",
+                                                                "2" = "No")
+                                    )
+
+# Summary of variables
+summary(data_1516)
+
+# Add column for the NHANES year this data is from
+data_1516 <- data_1516 |>
+  mutate(
+    "Year" = "2015-2016"
+  )
+
 ```
 
 # Load in 2017-2018 datasets
@@ -97,8 +215,19 @@ data_1718$UnablePregnant <- revalue(data_1718$UnablePregnant, c("1" = "Yes",
 # Summary of variables
 summary(data_1718)
 
-# Save as csv
-write_csv(data_1718, "data/datacleaned_1718.csv")
+# Add column for the NHANES year this data is from
+data_1718 <- data_1718 |>
+  mutate(
+    "Year" = "2017-2018"
+  )
 
 ```
+
+# Merge datasets and save as csv
+```{r}
+data_clean <- rbind(data_1314, data_1516, data_1718)
+write_csv(data_clean, "data/data_clean.csv")
+```
+
+
 
