@@ -15,7 +15,6 @@ library(gtsummary)
 
 #loading raw NHANES demographic data, per year 
 #naming convention = "demo" (demographics) year range XX_XX, raw to denote raw files
-demo11_12_raw = read_xpt("data/2011_2012/DEMO_G.xpt")
 demo13_14_raw = read_xpt("data/2013_2014/DEMO_H.xpt")
 demo15_16_raw = read_xpt("data/2015_2016/DEMO_I.xpt")
 demo17_18_raw = read_xpt("data/2017_2018/DEMO_J.xpt")
@@ -48,13 +47,11 @@ clean_demo_df <- function(df, cycle_label) {
 }
 
 #applies the function to each of our data frames
-demo_11_12_clean <- clean_demo_df(demo11_12_raw, "2011-2012")
 demo_13_14_clean <- clean_demo_df(demo13_14_raw, "2013-2014")
 demo_15_16_clean <- clean_demo_df(demo15_16_raw, "2015-2016")
 demo_17_18_clean <- clean_demo_df(demo17_18_raw, "2017-2018")
 
 demo_all_years <- bind_rows(
-  demo_11_12_clean,
   demo_13_14_clean,
   demo_15_16_clean,
   demo_17_18_clean
@@ -107,7 +104,6 @@ clean_label <- function(df, cycle_label) {df %>%
 }
 
 #now running the data frames through this 
-demo_11_12_label <- clean_label(demo_11_12_clean, "2011-2012")
 demo_13_14_label <- clean_label(demo_13_14_clean, "2013-2014")
 demo_15_16_label <- clean_label(demo_15_16_clean, "2015-2016")
 demo_17_18_label <- clean_label(demo_17_18_clean, "2017-2018")
@@ -115,7 +111,7 @@ demo_17_18_label <- clean_label(demo_17_18_clean, "2017-2018")
 
 ```{r, include = FALSE}
 #all years
-demo_all_table = bind_rows (demo_11_12_label, demo_13_14_label, demo_15_16_label, demo_17_18_label)
+demo_all_table = bind_rows (demo_13_14_label, demo_15_16_label, demo_17_18_label)
 
 demo_all_table %>%
   select(gender, race_eth, edu_adult, edu_youth, income) %>%
@@ -133,7 +129,7 @@ demo_all_table %>%
 
 This table describes demographic characteristics for all female participants in our study, from 2011-2018, for a total of 19,848 participants. When available, information on race/ethnicity, education attainment (split by adults >=20, or youth <=19), and household income is reported. 
 ```{r all_years_table, echo=FALSE, message=FALSE, warning=FALSE}
-cat("NHANES Demographics: All Years (2011-2018)")
+cat("NHANES Demographics: All Years (2013-2018)")
 demo_all_table %>%
   select(gender, age, race_eth, edu_adult, edu_youth, income) %>%
   tbl_summary(
