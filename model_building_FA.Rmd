@@ -43,6 +43,24 @@ phthalates=data %>%
 ```
 
 ```{r}
+as.numeric(unlist(phthalates))
+
+fa_3.oblique <- fa(
+  phthalates,
+  nfactors = 3,
+  rotate = "promax",
+  scores = "regression",
+  fm = "ml"
+)
+
+fa_5.oblique
+```
+
+## Factor scores
+
+```{r}
+scores.efa <- data.frame(fa_3.oblique$scores)
+head(scores.efa)
 
 ```
 Notes on planned factor analysis: 
