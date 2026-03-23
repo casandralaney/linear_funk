@@ -1,0 +1,43 @@
+---
+title: "model_building_FA"
+output: html_document
+date: "2026-03-23"
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(janitor)
+library(ggplot2)
+library(ggcorrplot)
+library(ggfortify)
+library(gridExtra)
+library(factoextra)
+library(psych)
+library(GPArotation)
+library(ggrepel)
+library(pals)
+library(GGally)
+library(dendextend)
+library(ggdendro)
+library(reshape2)
+library(forcats)
+library(here)
+```
+Step 0 Preparing data 
+```{r}
+data <- read.csv("data/data_clean.csv") |>
+  data.frame() 
+
+#creating binary data 
+data$UnablePregnant <- ifelse(data$UnablePregnant == "Yes", 1,
+                              ifelse(data$UnablePregnant == "No", 0, NA))
+
+data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
+                              ifelse(data$RegularPeriod_12m == "No", 0, NA))
+```
+
+Notes on planned factor analysis: 
+We will be employing exploratory factor analysis, which will be performed using a correlation matrix. The number of factors retained will be based on eigenvalues and a scree plot. Factor scores will be calculated by examining actor loadings, and will be calculated for each participant. These scores will be used in regression models to evaluate associations with reproductive helath outcomes nad adjusted for sociodemographic factors. 

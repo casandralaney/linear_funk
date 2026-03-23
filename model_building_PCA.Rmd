@@ -1,0 +1,45 @@
+---
+title: "model_building_PCA"
+output: pdf_document
+date: "2026-03-23"
+---
+
+```{r setup, include=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(lubridate)
+library(janitor)
+library(ggplot2)
+library(ggcorrplot)
+library(ggfortify)
+library(gridExtra)
+library(factoextra)
+library(psych)
+library(GPArotation)
+library(ggrepel)
+library(pals)
+library(GGally)
+library(dendextend)
+library(ggdendro)
+library(reshape2)
+library(forcats)
+library(here)
+```
+
+Step 0 Preparing data 
+```{r}
+data <- read.csv("data/data_clean.csv") |>
+  data.frame() 
+
+#creating binary data 
+data$UnablePregnant <- ifelse(data$UnablePregnant == "Yes", 1,
+                              ifelse(data$UnablePregnant == "No", 0, NA))
+
+data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
+                              ifelse(data$RegularPeriod_12m == "No", 0, NA))
+
+```
+
+Notes on planned PCA Analysis
+Beceause phtalates are highly correlated, we plan to leverage PCA analysis to reduce dimensionality and capture mixture effects. PCA concentrations will be conducted on concentrations of 10 metabolites using a correlation plot to account for differences in scale between the phthalates. Eigenvalues and scree plots will be created to determine the number of principle components retained. Component scores will be created for participants in the study. Logistic regression models will be fit to estimate the association between principle components and binary reproductive health outcomes, adjusting for sociodemographic and behavioral factors. 
