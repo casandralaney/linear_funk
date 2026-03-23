@@ -39,7 +39,59 @@ data$UnablePregnant <- ifelse(data$UnablePregnant == "Yes", 1,
 data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
                               ifelse(data$RegularPeriod_12m == "No", 0, NA))
 
+phthalates=data %>%
+  select(-Race, -Age, -Age_FirstPeriod, -RegularPeriod_12m, -Age_LastPeriod, -UnablePregnant, -Year)
+```
+
+```{r}
+dim(phthalates)
+summary(phthalates)
+
+ggcorr(phthalates)
+
+as.numeric(unlist(phthalates))
+
+pca.constituent <- prcomp(phthalates, scale. = TRUE)
+
+summary(pca.constituent)
+
+eigenvalues <- pca.constituent$sdev^2
+
+perc_variance_v<- eigenvalues/sum(eigenvalues)
+perc_variance_v <- round(100*perc_variance_v,1)
+
+cumulative_perc_var_v <- cumsum(perc_variance_v)
+
+eigenvalues.constituent <- data.frame(
+  PC = seq_along(eigenvalues),
+  Eigenvalue = eigenvalues,
+  Variance = perc_variance_v,
+  Cumulative = cumulative_perc_var_v)
+
+eigenvalues.constituent
+
+fviz_eig(pca.constituent)
+
+loadings.constituent <- as.data.frame.matrix(pca.constituent$rotation)
+loadings.constituent$Constituent <- rownames(loadings.constituent)
+
+loadings.long <- loadings.constituent %>%
+  pivot_longer(-Constituent, names_to="PC", values_to="Loading")
+
+loadings.long %>%
+  filter(PC %in% c("PC1","PC2")) %>%
+  ggplot(aes(Constituent, Loading)) +
+  geom_col() +
+  facet_wrap(~PC) +
+  theme_bw()
+
+scores.constituent <- as.data.frame(pca.constituent$x)
+
+scores.constituent <- scores.constituent %>%
+  select(PC1:PC7)
+
+head(scores.constituent)
 ```
 
 Notes on planned PCA Analysis
-Beceause phtalates are highly correlated, we plan to leverage PCA analysis to reduce dimensionality and capture mixture effects. PCA concentrations will be conducted on concentrations of 10 metabolites using a correlation plot to account for differences in scale between the phthalates. Eigenvalues and scree plots will be created to determine the number of principle components retained. Component scores will be created for participants in the study. Logistic regression models will be fit to estimate the association between principle components and binary reproductive health outcomes, adjusting for sociodemographic and behavioral factors. 
+Beceause phtalates are highly correlated, we plan to leverage PCA analysis to reduce dimensionality and capture mixture effects. PCA concentrations will be conducted on concentrations of 10 metabolites using a correlation plot to account for differences in scale between the phthalates. Eigenvalues and scree plots will be created to determine the number of principle components retained. Component scores will be created for participants in the study. Logistic regression models will be fit to estimate the association between principle components and binary reproductive health outcomes, adjusting for sociodemographic factors including: age, race, income group, education level. 

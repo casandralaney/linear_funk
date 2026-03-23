@@ -37,7 +37,13 @@ data$UnablePregnant <- ifelse(data$UnablePregnant == "Yes", 1,
 
 data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
                               ifelse(data$RegularPeriod_12m == "No", 0, NA))
+
+phthalates=data %>%
+  select(-Race, -Age, -Age_FirstPeriod, -RegularPeriod_12m, -Age_LastPeriod, -UnablePregnant, -Year)
 ```
 
+```{r}
+
+```
 Notes on planned factor analysis: 
 We will be employing exploratory factor analysis, which will be performed using a correlation matrix. The number of factors retained will be based on eigenvalues and a scree plot. Factor scores will be calculated by examining actor loadings, and will be calculated for each participant. These scores will be used in regression models to evaluate associations with reproductive helath outcomes nad adjusted for sociodemographic factors. 
