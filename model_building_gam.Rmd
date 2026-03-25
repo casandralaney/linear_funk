@@ -40,8 +40,7 @@ gam.m1 <- gam(Age_FirstPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MB
 summary(gam.m1)
 
 # Generate plots for the nonlinear terms included in the model
-par(mfrow = c(3, 2))
-plot(gam.m1)
+plot(gam.m1, pages=4)
 ```
 
 # Model using outome as RegularPeriod_12m (binary)
