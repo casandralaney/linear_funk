@@ -1,5 +1,5 @@
 ---
-title: "model_building_FA"
+title: "model_building_mixtures"
 output: html_document
 date: "2026-03-23"
 ---
@@ -40,28 +40,65 @@ data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
 
 phthalates=data %>%
   select(-Race, -Age, -Age_FirstPeriod, -RegularPeriod_12m, -Age_LastPeriod, -UnablePregnant, -Year)
+
+demo = data %>%
+  select(Race, Age, Age_FirstPeriod, RegularPeriod_12m, Age_LastPeriod, UnablePregnant, Year)
+
+
+phthalates_log <- log(phthalates)
+as.numeric(unlist(phthalates_log))
+phthalates_scaled <- scale(phthalates_log)
 ```
-
+Step 1: PCA Analysis 
 ```{r}
-as.numeric(unlist(phthalates))
-
+```
+Step 2: Factor Analysis 
+```{r}
 fa_3.oblique <- fa(
-  phthalates,
+  phthalates_scaled,
   nfactors = 3,
   rotate = "promax",
   scores = "regression",
-  fm = "ml"
-)
+  fm = "ml")
 
-fa_5.oblique
-```
+fa_3.oblique
+print(fa_3.oblique$loadings, cutoff = 0.3)
 
-## Factor scores
-
-```{r}
+#factor scores
 scores.efa <- data.frame(fa_3.oblique$scores)
 head(scores.efa)
-
 ```
-Notes on planned factor analysis: 
-We will be employing exploratory factor analysis, which will be performed using a correlation matrix. The number of factors retained will be based on eigenvalues and a scree plot. Factor scores will be calculated by examining actor loadings, and will be calculated for each participant. These scores will be used in regression models to evaluate associations with reproductive helath outcomes nad adjusted for sociodemographic factors. 
+
+## Now taking factor group membership and seeing how its associated with reproductive health outcomes by running regression models 
+```{r}
+#renaming groups
+scores <- as.data.frame(fa_3.oblique$scores)
+colnames(scores) <- c("F1", "F2", "F3")
+
+#merge with the main df
+merged_factor_df <- cbind(phthalates_scaled, scores)
+head(merged_factor_df)
+
+#merging back with data
+merged_factor_df <- merged_factor_df %>%
+  cbind(phthalates_scaled, demo)
+
+#linear regression for age of menarche
+model_menarche <- lm(Age_FirstPeriod ~ F1 + F2 + F3, data = merged_factor_df)
+summary(model_menarche)
+
+#logistic regression for trouble getting pregnant and regular periods 
+#regular periods
+model_regular <- glm(RegularPeriod_12m ~ F1 + F2 + F3, data = merged_factor_df,
+                     family=binomial)
+summary(model_regular)
+exp(coef(model_regular))
+confint(model_regular)
+
+#trouble getting pregnant
+model_pregnant <- glm(UnablePregnant ~ F1 + F2 + F3, data = merged_factor_df,
+                      family = binomial)
+summary(model_pregnant)
+exp(coef(model_pregnant))
+confint(model_pregnant)
+```
