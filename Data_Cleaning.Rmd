@@ -79,7 +79,7 @@ summary(data_1314)
 # Add column for the NHANES year this data is from
 data_1314 <- data_1314 |>
   mutate(
-    "Year" = "2013-2014"
+    "Year" = "2013_2014"
   )
 
 ```
@@ -149,7 +149,7 @@ summary(data_1516)
 # Add column for the NHANES year this data is from
 data_1516 <- data_1516 |>
   mutate(
-    "Year" = "2015-2016"
+    "Year" = "2015_2016"
   )
 
 ```
@@ -218,7 +218,7 @@ summary(data_1718)
 # Add column for the NHANES year this data is from
 data_1718 <- data_1718 |>
   mutate(
-    "Year" = "2017-2018"
+    "Year" = "2017_2018"
   )
 
 ```
