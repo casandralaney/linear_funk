@@ -51,6 +51,69 @@ phthalates_scaled <- scale(phthalates_log)
 ```
 Step 1: PCA Analysis 
 ```{r}
+ggcorr(phthalates_scaled)
+
+pca.constituent <- prcomp(phthalates_scaled, scale.=TRUE)
+summary(pca.constituent)
+
+# creating eigenvalues
+eigenvalues.v <- pca.constituent$sdev^2
+
+perc_variance.v <- eigenvalues.v/sum(eigenvalues.v)
+perc_variance.v <- round(100*perc_variance.v,1)
+
+cumulative_perc_var.v <- cumsum(perc_variance.v)
+
+eigenvalues.constituent <- data.frame(
+PC = seq_along(eigenvalues.v),
+Eigenvalue = eigenvalues.v,
+Variance = perc_variance.v,
+Cumulative = cumulative_perc_var.v)
+
+eigenvalues.constituent
+
+fviz_eig(pca.constituent)
+
+loadings.constituent <- as.data.frame.matrix(pca.constituent$rotation)
+loadings.constituent$Constituent <- rownames(loadings.constituent)
+
+loadings.long <- loadings.constituent %>%
+  pivot_longer(-Constituent, names_to="PC", values_to="Loading")
+
+loadings.long %>%
+  filter(PC %in% c("PC1","PC2")) %>%
+  ggplot(aes(Constituent, Loading)) +
+  geom_col() +
+  facet_wrap(~PC) +
+  theme_bw()
+
+scores.constituent <- as.data.frame(pca.constituent$x)
+
+scores.constituent <- scores.constituent %>%
+  select(PC1:PC7)
+
+head(scores.constituent)
+
+# Now associating PCA exposure categories with our selected health symptoms 
+pca_scores_3 <- pca_scores[, 1:3]
+merged_pca_df <- cbind(merged_factor_df, pca_scores_3)
+
+#Age at menarche
+lm_menarche_pca <- lm(Age_FirstPeriod ~ PC1 + PC2 + PC3, 
+                                data = merged_pca_df)
+summary(lm_menarche_pca)
+
+#Regular period 
+glm_regular_period_pca <- glm(RegularPeriod_12m ~ PC1 + PC2 + PC3, 
+                                data = merged_pca_df, family = binomial)
+summary(glm_regular_period_pca)
+
+#Trouble getting pregnant
+glm_unable_pregnant <- glm(UnablePregnant ~ PC1 + PC2 + PC3, 
+                                data = merged_pca_df, family = binomial)
+summary(glm_unable_pregnant)
+
+
 ```
 Step 2: Factor Analysis 
 ```{r}
