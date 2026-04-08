@@ -37,8 +37,6 @@ glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEH
 summary(glm_ability)
 glm_ability$coefficients # Coefficients (log scale)
 exp(glm_ability$coefficients)
-
-
 ```
 
 # Regularity
