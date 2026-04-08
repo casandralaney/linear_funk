@@ -6,6 +6,7 @@ output: pdf_document
 # Load neccessary packages
 ```{r}
 library(glmnet)
+library(tidyverse)
 ```
 
 # Load in dataset and use 0/1 for binary variables
@@ -22,74 +23,29 @@ data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
 
 # Prepare data for modeling
 ```{r warning=FALSE, message = FALSE}
-X <- model.matrix(UnablePregnant ~ SEQN + Age + Race + Age_FirstPeriod +
-                  RegularPeriod_12m + Age_LastPeriod + MCNP + MCOP +
-                  MECPP + MBP + MCPP + MEP + MEHHP + MEHP +
-                  MIBP + MEOHP + MBZP,
-                  data = data)
-X <- X[, -1]
-
-y <- data$UnablePregnant
-
+data =
+  data |>
+  mutate(Race = as.factor(Race),
+         RegularPeriod_12m = as.factor(RegularPeriod_12m),
+         UnablePregnant = as.factor(UnablePregnant),)
 ```
 
-# All poisson regressions
+# Unable Pregnant
 ```{r}
-# Fit Poisson regression
-fit_pois <- glm.fit(
-  x = X,
-  y = y,
-  family = poisson(link = "log")
-)
+glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data, family = binomial)
 
-# Coefficients (log scale)
-fit_pois$coefficients
+summary(glm_ability)
+glm_ability$coefficients # Coefficients (log scale)
+exp(glm_ability$coefficients)
 
-# Risk ratios
-exp(fit_pois$coefficients)
+
 ```
 
-# All logit regressions
+# Regularity
 ```{r}
-fit_logit <- glm(y ~ X, family = binomial(link = "logit"))
+glm_regularity <- glm(RegularPeriod_12m ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data, family = binomial)
 
-summary(fit_logit)
+summary(glm_regularity)
+glm_regularity$coefficients # Coefficients (log scale)
+exp(glm_regularity$coefficients)
 ```
-
-# First/last period vs. MEP
-```{r}
-fit_lm <- lm(Age_FirstPeriod ~ MEP, data = data)
-summary(fit_lm)
-
-fit_lm <- lm(Age_LastPeriod ~ MEP, data = data)
-summary(fit_lm)
-
-fit_logit <- glm(UnablePregnant ~ MEP, data = data, family = binomial(link = "logit"))
-
-summary(fit_logit)
-```
-
-# First/last period vs. MBZP
-```{r}
-fit_lm <- lm(Age_FirstPeriod ~ MBZP, data = data)
-summary(fit_lm)
-
-fit_lm <- lm(Age_LastPeriod ~ MBZP, data = data)
-summary(fit_lm)
-
-fit_logit <- glm(UnablePregnant ~ MBZP, data = data, family = binomial(link = "logit"))
-
-summary(fit_logit)
-```
-
-# MCPP vs. last period
-```{r}
-fit_lm <- lm(Age_LastPeriod ~ MCPP, data = data)
-summary(fit_lm)
-
-fit_logit <- glm(UnablePregnant ~ MCPP, data = data, family = binomial(link = "logit"))
-
-summary(fit_logit)
-
-```
-
