@@ -30,7 +30,9 @@ dta2 <- dta %>%
       1, 0),
     race_white = if_else(Race == "NonHispanic_White", 1, 0), 
     race_other = if_else(Race == "OtherRace_MultiRacial", 1, 0),
-    year_num = as.numeric(Year)
+    year_num = as.numeric(Year),
+    RegularPeriod_12m = ifelse(RegularPeriod_12m == "Yes", 1, 0),
+    UnablePregnant = ifelse(UnablePregnant == "Yes", 1, 0)
   ) %>%
   transmute(
     age = Age,
@@ -39,6 +41,8 @@ dta2 <- dta %>%
     race_hispanic,
     race_white,
     race_other,
+    UnablePregnant,
+    RegularPeriod_12m,
     year = Year
   ) 
 ```
@@ -62,9 +66,9 @@ confounders <- dta2 %>%
   as.matrix()
 ```
 
-Initial BKMR Model
+Initial BKMR Models
 ```{r}
-fitkm <- kmbayes(
+fitkm_first_period <- kmbayes(
   y = dta$Age_FirstPeriod,
   Z = phthalates_log,
   X = confounders,
@@ -73,21 +77,39 @@ fitkm <- kmbayes(
   varsel = TRUE
 )
 
-saveRDS(fitkm, file = "fitkm.rds")
+saveRDS(fitkm_first_period, file = "fitkm_first_period.rds")
 
-fitkm <- readRDS("fitkm.rds")
+fitkm <- readRDS("fitkm_first_period.rds")
+
+fitkm_unable_preg <- kmbayes(
+  y = dta2$UnablePregnant,
+  Z = phthalates_log,
+  X = confounders,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
 ```
 Trace Plots
 ```{r}
+#First Period
 TracePlot(fit = fitkm, par = "beta")
 TracePlot(fit = fitkm, par = "beta", comp = 1)
 TracePlot(fit = fitkm, par = "beta", comp = 2)
 TracePlot(fit = fitkm, par = "sigsq.eps")
 TracePlot(fit = fitkm, par = "r", comp = 1)
 TracePlot(fit = fitkm, par = "r", comp = 2)
+
+#Unable to get pregnant
+TracePlot(fit = fitkm_unable_preg, par = "beta")
+TracePlot(fit = fitkm_unable_preg, par = "beta", comp = 1)
+TracePlot(fit = fitkm_unable_preg, par = "beta", comp = 2)
+TracePlot(fit = fitkm_unable_preg, par = "sigsq.eps")
+TracePlot(fit = fitkm_unable_preg, par = "r", comp = 1)
+TracePlot(fit = fitkm_unable_preg, par = "r", comp = 2)
 ```
 ```{r}
-confounders.scaled <- scale(dta2[, 1:5])
+confounders.scaled <- scale(dta2[, 1:8])
 
 fitkm2 <- kmbayes(
   y = dta$Age_FirstPeriod,
@@ -110,6 +132,11 @@ TracePlot(fit = fitkm2, par = "sigsq.eps")
 TracePlot(fit = fitkm2, par = "r", comp = 1)
 TracePlot(fit = fitkm2, par = "r", comp = 2)
 ```
-
+Plotting BKMR results
 ```{r}
+ExtractPIPs(
+  fitkm2,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
 ```
