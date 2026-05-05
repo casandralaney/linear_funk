@@ -1,0 +1,115 @@
+---
+title: "BKMR"
+output: html_document
+date: "2026-05-05"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+#install.packages("bkmr")
+library(bkmr)
+#install.packages("fastDummies")
+library(fastDummies)
+```
+
+```{r}
+dta <- read_csv("data/data_clean.csv")
+dta
+
+head(dta)
+
+summary(dta)
+
+unique(dta$Race)
+#Making data numeric
+dta2 <- dta %>%
+  mutate(
+    race_black = if_else(Race == "NonHispanic_Black", 1, 0),
+    race_hispanic = if_else(
+      Race %in% c("Mexican_American", "Other_Hispanic"),
+      1, 0),
+    race_white = if_else(Race == "NonHispanic_White", 1, 0), 
+    race_other = if_else(Race == "OtherRace_MultiRacial", 1, 0),
+    year_num = as.numeric(Year)
+  ) %>%
+  transmute(
+    age = Age,
+    age_first_period = Age_FirstPeriod,
+    race_black,
+    race_hispanic,
+    race_white,
+    race_other,
+    year = Year
+  ) 
+```
+BKMR Model
+```{r}
+#Defining Exposure 
+phthalates = cbind(dta$MBZP, dta$MEOHP, dta$MIBP, dta$MEHP, dta$MEHHP, dta$MEP, dta$MCPP, dta$MBP, dta$MECPP, dta$MCOP, dta$MCNP)
+
+phthalates_log = log(phthalates)
+
+colnames(phthalates) <- c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+
+confounders <- dta2 %>%
+  dplyr::select(
+    race_black,
+    race_hispanic,
+    race_other,
+    age
+  ) %>%
+  as.matrix()
+```
+
+Initial BKMR Model
+```{r}
+fitkm <- kmbayes(
+  y = dta$Age_FirstPeriod,
+  Z = phthalates_log,
+  X = confounders,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm, file = "fitkm.rds")
+
+fitkm <- readRDS("fitkm.rds")
+```
+Trace Plots
+```{r}
+TracePlot(fit = fitkm, par = "beta")
+TracePlot(fit = fitkm, par = "beta", comp = 1)
+TracePlot(fit = fitkm, par = "beta", comp = 2)
+TracePlot(fit = fitkm, par = "sigsq.eps")
+TracePlot(fit = fitkm, par = "r", comp = 1)
+TracePlot(fit = fitkm, par = "r", comp = 2)
+```
+```{r}
+confounders.scaled <- scale(dta2[, 1:5])
+
+fitkm2 <- kmbayes(
+  y = dta$Age_FirstPeriod,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm2, file = "fitkm2.rds")
+
+fitkm2 <- readRDS("fitkm2.rds")
+```
+Trace Plots Again
+```{r}
+TracePlot(fit = fitkm2, par = "beta")
+TracePlot(fit = fitkm2, par = "beta", comp = 2)
+TracePlot(fit = fitkm2, par = "sigsq.eps")
+TracePlot(fit = fitkm2, par = "r", comp = 1)
+TracePlot(fit = fitkm2, par = "r", comp = 2)
+```
+
+```{r}
+```
