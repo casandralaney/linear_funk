@@ -43,7 +43,6 @@ dta2 <- dta %>%
     race_other,
     UnablePregnant,
     RegularPeriod_12m,
-    year = Year
   ) 
 ```
 BKMR Model
@@ -79,7 +78,7 @@ fitkm_first_period <- kmbayes(
 
 saveRDS(fitkm_first_period, file = "fitkm_first_period.rds")
 
-fitkm <- readRDS("fitkm_first_period.rds")
+fitkm_first_period <- readRDS("fitkm_first_period.rds")
 
 fitkm_unable_preg <- kmbayes(
   y = dta2$UnablePregnant,
@@ -89,16 +88,33 @@ fitkm_unable_preg <- kmbayes(
   verbose = FALSE,
   varsel = TRUE
 )
+
+saveRDS(fitkm_unable_preg, file = "fitkm_unable_preg.rds")
+
+fitkm_unable_preg <- readRDS("fitkm_unable_preg.rds")
+
+fitkm_regular_period <- kmbayes(
+  y = dta2$RegularPeriod_12m,
+  Z = phthalates_log,
+  X = confounders,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm_regular_period, file = "fitkm_regular_period.rds")
+
+fitkm_regular_period <- readRDS("fitkm_regular_period.rds")
 ```
 Trace Plots
 ```{r}
 #First Period
-TracePlot(fit = fitkm, par = "beta")
-TracePlot(fit = fitkm, par = "beta", comp = 1)
-TracePlot(fit = fitkm, par = "beta", comp = 2)
-TracePlot(fit = fitkm, par = "sigsq.eps")
-TracePlot(fit = fitkm, par = "r", comp = 1)
-TracePlot(fit = fitkm, par = "r", comp = 2)
+TracePlot(fit = fitkm_first_period, par = "beta")
+TracePlot(fit = fitkm_first_period, par = "beta", comp = 1)
+TracePlot(fit = fitkm_first_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm_first_period, par = "sigsq.eps")
+TracePlot(fit = fitkm_first_period, par = "r", comp = 1)
+TracePlot(fit = fitkm_first_period, par = "r", comp = 2)
 
 #Unable to get pregnant
 TracePlot(fit = fitkm_unable_preg, par = "beta")
@@ -107,11 +123,19 @@ TracePlot(fit = fitkm_unable_preg, par = "beta", comp = 2)
 TracePlot(fit = fitkm_unable_preg, par = "sigsq.eps")
 TracePlot(fit = fitkm_unable_preg, par = "r", comp = 1)
 TracePlot(fit = fitkm_unable_preg, par = "r", comp = 2)
+
+#Regular Period
+TracePlot(fit = fitkm_regular_period, par = "beta")
+TracePlot(fit = fitkm_regular_period, par = "beta", comp = 1)
+TracePlot(fit = fitkm_regular_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm_regular_period, par = "sigsq.eps")
+TracePlot(fit = fitkm_regular_period, par = "r", comp = 1)
+TracePlot(fit = fitkm_regular_period, par = "r", comp = 2)
 ```
 ```{r}
-confounders.scaled <- scale(dta2[, 1:8])
+confounders.scaled <- scale(confounders)
 
-fitkm2 <- kmbayes(
+fitkm2_first_period <- kmbayes(
   y = dta$Age_FirstPeriod,
   Z = phthalates_log,
   X = confounders.scaled,
@@ -120,23 +144,80 @@ fitkm2 <- kmbayes(
   varsel = TRUE
 )
 
-saveRDS(fitkm2, file = "fitkm2.rds")
+saveRDS(fitkm2_first_period, file = "fitkm2_first_period.rds")
 
-fitkm2 <- readRDS("fitkm2.rds")
+fitkm2_first_period <- readRDS("fitkm2_first_period.rds")
+
+#unable to get pregnant 
+fitkm2_unable_pregnant <- kmbayes(
+  y = dta2$UnablePregnant,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm2_unable_pregnant, file = "fitkm2_unable_pregnant.rds")
+
+fitkm2_unable_pregnant <- readRDS("fitkm2_unable_pregnant.rds")
+
+#regular periods
+fitkm2_regular_period <- kmbayes(
+  y = dta2$RegularPeriod_12m,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm2_regular_period, file = "fitkm2_regular_period.rds")
+
+fitkm2_regular_period <- readRDS("fitkm2_regular_period.rds")
 ```
 Trace Plots Again
 ```{r}
-TracePlot(fit = fitkm2, par = "beta")
-TracePlot(fit = fitkm2, par = "beta", comp = 2)
-TracePlot(fit = fitkm2, par = "sigsq.eps")
-TracePlot(fit = fitkm2, par = "r", comp = 1)
-TracePlot(fit = fitkm2, par = "r", comp = 2)
+#first period
+TracePlot(fit = fitkm2_first_period, par = "beta")
+TracePlot(fit = fitkm2_first_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm2_first_period, par = "sigsq.eps")
+TracePlot(fit = fitkm2_first_period, par = "r", comp = 1)
+TracePlot(fit = fitkm2_first_period, par = "r", comp = 2)
+
+#unable to get pregnant
+TracePlot(fit = fitkm2_unable_pregnant, par = "beta")
+TracePlot(fit = fitkm2_unable_pregnant, par = "beta", comp = 2)
+TracePlot(fit = fitkm2_unable_pregnant, par = "sigsq.eps")
+TracePlot(fit = fitkm2_unable_pregnant, par = "r", comp = 1)
+TracePlot(fit = fitkm2_unable_pregnant, par = "r", comp = 2)
+
+#regular period
+TracePlot(fit = fitkm2_regular_period, par = "beta")
+TracePlot(fit = fitkm2_regular_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm2_regular_period, par = "sigsq.eps")
+TracePlot(fit = fitkm2_regular_period, par = "r", comp = 1)
+TracePlot(fit = fitkm2_regular_period, par = "r", comp = 2)
 ```
 Plotting BKMR results
 ```{r}
 ExtractPIPs(
-  fitkm2,
+  fitkm2_first_period,
   z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
                          "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
 )
+
+ExtractPIPs(
+  fitkm2_regular_period,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+
+ExtractPIPs(
+  fitkm2_unable_pregnant,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
 ```
