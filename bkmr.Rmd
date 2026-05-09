@@ -321,4 +321,45 @@ ggplot(
     colour = "quantile"
   ) +
   plotTheme
+
+
 ```
+
+```{r}
+responses_first_period<- OverallRiskSummaries(
+  fit = fitkm2_first_period,
+  y = dta2$age_first_period,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  qs = seq(0.25, 0.75, by = 0.05),
+  q.fixed = 0.5,
+  method = "exact"
+)
+
+responses_first_period
+
+responses_irregular<- OverallRiskSummaries(
+  fit = fitkm2_regular_period,
+  y = dta2$RegularPeriod_12m,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  qs = seq(0.25, 0.75, by = 0.05),
+  q.fixed = 0.5,
+  method = "exact"
+)
+
+responses_irregular
+
+responses_diff_preg<- OverallRiskSummaries(
+  fit = fitkm2_unable_pregnant,
+  y = dta2$UnablePregnant,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  qs = seq(0.25, 0.75, by = 0.05),
+  q.fixed = 0.5,
+  method = "exact"
+)
+
+responses_diff_preg
+
+``` 
