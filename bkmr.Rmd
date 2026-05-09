@@ -1,0 +1,365 @@
+---
+title: "BKMR"
+output: html_document
+date: "2026-05-05"
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+#install.packages("bkmr")
+library(bkmr)
+#install.packages("fastDummies")
+library(fastDummies)
+```
+
+```{r}
+dta <- read_csv("data/data_clean.csv")
+dta
+
+head(dta)
+
+summary(dta)
+
+unique(dta$Race)
+#Making data numeric
+dta2 <- dta %>%
+  mutate(
+    race_black = if_else(Race == "NonHispanic_Black", 1, 0),
+    race_hispanic = if_else(
+      Race %in% c("Mexican_American", "Other_Hispanic"),
+      1, 0),
+    race_white = if_else(Race == "NonHispanic_White", 1, 0), 
+    race_other = if_else(Race == "OtherRace_MultiRacial", 1, 0),
+    year_num = as.numeric(Year),
+    RegularPeriod_12m = ifelse(RegularPeriod_12m == "Yes", 1, 0),
+    UnablePregnant = ifelse(UnablePregnant == "Yes", 1, 0)
+  ) %>%
+  transmute(
+    age = Age,
+    age_first_period = Age_FirstPeriod,
+    race_black,
+    race_hispanic,
+    race_white,
+    race_other,
+    UnablePregnant,
+    RegularPeriod_12m,
+  ) 
+```
+BKMR Model
+```{r}
+#Defining Exposure 
+phthalates = cbind(dta$MBZP, dta$MEOHP, dta$MIBP, dta$MEHP, dta$MEHHP, dta$MEP, dta$MCPP, dta$MBP, dta$MECPP, dta$MCOP, dta$MCNP)
+
+phthalates_log = log(phthalates)
+
+colnames(phthalates) <- c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+
+confounders <- dta2 %>%
+  dplyr::select(
+    race_black,
+    race_hispanic,
+    race_other,
+    age
+  ) %>%
+  as.matrix()
+```
+
+Initial BKMR Models
+```{r}
+fitkm_first_period <- kmbayes(
+  y = dta$Age_FirstPeriod,
+  Z = phthalates_log,
+  X = confounders,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm_first_period, file = "fitkm_first_period.rds")
+
+fitkm_first_period <- readRDS("fitkm_first_period.rds")
+
+fitkm_unable_preg <- kmbayes(
+  y = dta2$UnablePregnant,
+  Z = phthalates_log,
+  X = confounders,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm_unable_preg, file = "fitkm_unable_preg.rds")
+
+fitkm_unable_preg <- readRDS("fitkm_unable_preg.rds")
+
+fitkm_regular_period <- kmbayes(
+  y = dta2$RegularPeriod_12m,
+  Z = phthalates_log,
+  X = confounders,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm_regular_period, file = "fitkm_regular_period.rds")
+
+fitkm_regular_period <- readRDS("fitkm_regular_period.rds")
+```
+Trace Plots
+```{r}
+#First Period
+TracePlot(fit = fitkm_first_period, par = "beta")
+TracePlot(fit = fitkm_first_period, par = "beta", comp = 1)
+TracePlot(fit = fitkm_first_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm_first_period, par = "sigsq.eps")
+TracePlot(fit = fitkm_first_period, par = "r", comp = 1)
+TracePlot(fit = fitkm_first_period, par = "r", comp = 2)
+
+#Unable to get pregnant
+TracePlot(fit = fitkm_unable_preg, par = "beta")
+TracePlot(fit = fitkm_unable_preg, par = "beta", comp = 1)
+TracePlot(fit = fitkm_unable_preg, par = "beta", comp = 2)
+TracePlot(fit = fitkm_unable_preg, par = "sigsq.eps")
+TracePlot(fit = fitkm_unable_preg, par = "r", comp = 1)
+TracePlot(fit = fitkm_unable_preg, par = "r", comp = 2)
+
+#Regular Period
+TracePlot(fit = fitkm_regular_period, par = "beta")
+TracePlot(fit = fitkm_regular_period, par = "beta", comp = 1)
+TracePlot(fit = fitkm_regular_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm_regular_period, par = "sigsq.eps")
+TracePlot(fit = fitkm_regular_period, par = "r", comp = 1)
+TracePlot(fit = fitkm_regular_period, par = "r", comp = 2)
+```
+```{r}
+confounders.scaled <- scale(confounders)
+
+fitkm2_first_period <- kmbayes(
+  y = dta$Age_FirstPeriod,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm2_first_period, file = "fitkm2_first_period.rds")
+
+fitkm2_first_period <- readRDS("fitkm2_first_period.rds")
+
+#unable to get pregnant 
+fitkm2_unable_pregnant <- kmbayes(
+  y = dta2$UnablePregnant,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm2_unable_pregnant, file = "fitkm2_unable_pregnant.rds")
+
+fitkm2_unable_pregnant <- readRDS("fitkm2_unable_pregnant.rds")
+
+#regular periods
+fitkm2_regular_period <- kmbayes(
+  y = dta2$RegularPeriod_12m,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  iter = 10000,
+  verbose = FALSE,
+  varsel = TRUE
+)
+
+saveRDS(fitkm2_regular_period, file = "fitkm2_regular_period.rds")
+
+fitkm2_regular_period <- readRDS("fitkm2_regular_period.rds")
+```
+Trace Plots Again
+```{r}
+#first period
+TracePlot(fit = fitkm2_first_period, par = "beta")
+TracePlot(fit = fitkm2_first_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm2_first_period, par = "sigsq.eps")
+TracePlot(fit = fitkm2_first_period, par = "r", comp = 1)
+TracePlot(fit = fitkm2_first_period, par = "r", comp = 2)
+
+#unable to get pregnant
+TracePlot(fit = fitkm2_unable_pregnant, par = "beta")
+TracePlot(fit = fitkm2_unable_pregnant, par = "beta", comp = 2)
+TracePlot(fit = fitkm2_unable_pregnant, par = "sigsq.eps")
+TracePlot(fit = fitkm2_unable_pregnant, par = "r", comp = 1)
+TracePlot(fit = fitkm2_unable_pregnant, par = "r", comp = 2)
+
+#regular period
+TracePlot(fit = fitkm2_regular_period, par = "beta")
+TracePlot(fit = fitkm2_regular_period, par = "beta", comp = 2)
+TracePlot(fit = fitkm2_regular_period, par = "sigsq.eps")
+TracePlot(fit = fitkm2_regular_period, par = "r", comp = 1)
+TracePlot(fit = fitkm2_regular_period, par = "r", comp = 2)
+```
+Plotting BKMR results
+```{r}
+ExtractPIPs(
+  fitkm2_first_period,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ExtractPIPs(
+  fitkm2_regular_period,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+
+ExtractPIPs(
+  fitkm2_unable_pregnant,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP",
+                         "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+```
+Making Plots
+```{r}
+plotTheme <- theme(
+  axis.title = element_text(size = 19),
+  axis.text = element_text(size = 17),
+  strip.text = element_text(size = 19),
+  title = element_text(size = 22),
+  legend.text = element_text(size = 17),
+  legend.title = element_text(size = 19)
+)
+
+#first period 
+pred.resp.univar_first_period <- PredictorResponseUnivar(
+  fit = fitkm2_first_period,
+  q.fixed = 0.5,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP", "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ggplot(
+  pred.resp.univar_first_period,
+  aes(z, est, ymin = est - 1.96 * se, ymax = est + 1.96 * se)
+) +
+  geom_smooth(stat = "identity") +
+  facet_wrap(~ variable, scales = "free_x") +
+  xlab("Phthalate Concentration") +
+  ylab("Change in expected age of first period") +
+  plotTheme
+
+#unable to be pregnant
+pred.resp.univar_unable_pregnant <- PredictorResponseUnivar(
+  fit = fitkm2_unable_pregnant,
+  q.fixed = 0.5,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP", "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ggplot(
+  pred.resp.univar_unable_pregnant,
+  aes(z, est, ymin = est - 1.96 * se, ymax = est + 1.96 * se)
+) +
+  geom_smooth(stat = "identity") +
+  facet_wrap(~ variable, scales = "free_x") +
+  xlab("Phthalate Concentration") +
+  ylab("Change in expected age of first period") +
+  plotTheme
+
+#regular period
+pred.resp.univar_regular_period <- PredictorResponseUnivar(
+  fit = fitkm2_regular_period,
+  q.fixed = 0.5,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP", "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ggplot(
+  pred.resp.univar_regular_period,
+  aes(z, est, ymin = est - 1.96 * se, ymax = est + 1.96 * se)
+) +
+  geom_smooth(stat = "identity") +
+  facet_wrap(~ variable, scales = "free_x") +
+  xlab("Phthalate Concentration") +
+  ylab("Change in expected age of first period") +
+  plotTheme
+```
+Exposure-response functions at different co-exposure levels
+```{r}
+#
+pred.resp.bivar_first_period <- PredictorResponseBivar(
+  fit = fitkm2_first_period,
+  min.plot.dist = 1
+)
+
+pred.resp.bivar.levels_first_period <- PredictorResponseBivarLevels(
+  pred.resp.df = pred.resp.bivar_first_period,
+  Z = phthalates_log,
+  qs = c(0.1, 0.5, 0.9)
+)
+
+pred.resp.bivar.levels_plot <- pred.resp.bivar.levels_first_period %>%
+  mutate(
+    quantile = factor(quantile)
+  ) %>%
+  arrange(variable2, variable1, quantile, z1)
+
+ggplot(
+  pred.resp.bivar.levels_plot,
+  aes(
+    x = z1,
+    y = est,
+    colour = quantile,
+    group = interaction(variable1, variable2, quantile)
+  )
+) +
+  geom_line(linewidth = 1.1) +
+  facet_grid(variable2 ~ variable1, scales = "free_x") +
+  labs(
+    title = "h(expos1 | quantiles of expos2)",
+    x = "expos1",
+    y = "est",
+    colour = "quantile"
+  ) +
+  plotTheme
+
+
+```
+
+```{r}
+responses_first_period<- OverallRiskSummaries(
+  fit = fitkm2_first_period,
+  y = dta2$age_first_period,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  qs = seq(0.25, 0.75, by = 0.05),
+  q.fixed = 0.5,
+  method = "exact"
+)
+
+responses_first_period
+
+responses_irregular<- OverallRiskSummaries(
+  fit = fitkm2_regular_period,
+  y = dta2$RegularPeriod_12m,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  qs = seq(0.25, 0.75, by = 0.05),
+  q.fixed = 0.5,
+  method = "exact"
+)
+
+responses_irregular
+
+responses_diff_preg<- OverallRiskSummaries(
+  fit = fitkm2_unable_pregnant,
+  y = dta2$UnablePregnant,
+  Z = phthalates_log,
+  X = confounders.scaled,
+  qs = seq(0.25, 0.75, by = 0.05),
+  q.fixed = 0.5,
+  method = "exact"
+)
+
+responses_diff_preg
+
+``` 

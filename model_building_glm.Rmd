@@ -6,6 +6,9 @@ output: pdf_document
 # Load neccessary packages
 ```{r}
 library(glmnet)
+library(tidyverse)
+library(broom)
+library(patchwork)
 ```
 
 # Load in dataset and use 0/1 for binary variables
@@ -22,74 +25,361 @@ data$RegularPeriod_12m <- ifelse(data$RegularPeriod_12m == "Yes", 1,
 
 # Prepare data for modeling
 ```{r warning=FALSE, message = FALSE}
-X <- model.matrix(UnablePregnant ~ SEQN + Age + Race + Age_FirstPeriod +
-                  RegularPeriod_12m + Age_LastPeriod + MCNP + MCOP +
-                  MECPP + MBP + MCPP + MEP + MEHHP + MEHP +
-                  MIBP + MEOHP + MBZP,
-                  data = data)
-X <- X[, -1]
-
-y <- data$UnablePregnant
-
+data =
+  data |>
+  mutate(Race = as.factor(Race),
+         RegularPeriod_12m = as.factor(RegularPeriod_12m),
+         UnablePregnant = as.factor(UnablePregnant),)
 ```
 
-# All poisson regressions
+# Unable Pregnant
 ```{r}
-# Fit Poisson regression
-fit_pois <- glm.fit(
-  x = X,
-  y = y,
-  family = poisson(link = "log")
+glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data, family = binomial)
+
+summary(glm_ability)
+glm_ability$coefficients # log odds
+exp(glm_ability$coefficients) # odds ratio
+```
+
+# Regularity
+```{r}
+glm_regularity <- glm(RegularPeriod_12m ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data, family = binomial)
+
+summary(glm_regularity)
+glm_regularity$coefficients # log odds
+exp(glm_regularity$coefficients) # odds ratio
+```
+
+# Forest Plots
+```{r}
+# Period Ability
+coefs <- coef(glm_ability)
+se <- sqrt(diag(vcov(glm_ability)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_ability <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
 )
 
-# Coefficients (log scale)
-fit_pois$coefficients
+tidy_ability <- tidy_ability |> 
+  dplyr::filter(term != "(Intercept)")
 
-# Risk ratios
-exp(fit_pois$coefficients)
+
+ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nUnable to Become Pregnant"
+  ) +
+  theme_minimal() -> ability
+
+
+# Period Regularity
+
+coefs <- coef(glm_regularity)
+se <- sqrt(diag(vcov(glm_regularity)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_regularity <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_regularity <- tidy_regularity |> 
+  dplyr::filter(term != "(Intercept)")
+
+ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nRegular Menstrual Periods"
+  ) +
+  theme_minimal() -> regularity
+
 ```
 
-# All logit regressions
+### Removing age 50+
 ```{r}
-fit_logit <- glm(y ~ X, family = binomial(link = "logit"))
-
-summary(fit_logit)
+# Prepare data for modeling
+data =
+  data |>
+  filter(Age < 50)
 ```
 
-# First/last period vs. MEP
+# Unable Pregnant
 ```{r}
-fit_lm <- lm(Age_FirstPeriod ~ MEP, data = data)
-summary(fit_lm)
+glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data, family = binomial)
 
-fit_lm <- lm(Age_LastPeriod ~ MEP, data = data)
-summary(fit_lm)
-
-fit_logit <- glm(UnablePregnant ~ MEP, data = data, family = binomial(link = "logit"))
-
-summary(fit_logit)
+summary(glm_ability)
+glm_ability$coefficients # log odds
+exp(glm_ability$coefficients) # odds ratio
 ```
 
-# First/last period vs. MBZP
+# Regularity
 ```{r}
-fit_lm <- lm(Age_FirstPeriod ~ MBZP, data = data)
-summary(fit_lm)
+glm_regularity <- glm(RegularPeriod_12m ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data, family = binomial)
 
-fit_lm <- lm(Age_LastPeriod ~ MBZP, data = data)
-summary(fit_lm)
-
-fit_logit <- glm(UnablePregnant ~ MBZP, data = data, family = binomial(link = "logit"))
-
-summary(fit_logit)
+summary(glm_regularity)
+glm_regularity$coefficients # log odds
+exp(glm_regularity$coefficients) # odds ratio
 ```
 
-# MCPP vs. last period
+# Forest Plots
 ```{r}
-fit_lm <- lm(Age_LastPeriod ~ MCPP, data = data)
-summary(fit_lm)
+# Period Ability
+coefs <- coef(glm_ability)
+se <- sqrt(diag(vcov(glm_ability)))
 
-fit_logit <- glm(UnablePregnant ~ MCPP, data = data, family = binomial(link = "logit"))
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
 
-summary(fit_logit)
+tidy_ability <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_ability <- tidy_ability |> 
+  dplyr::filter(term != "(Intercept)")
+
+
+ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for \nUnable to Become Pregnant \nAge <50"
+  ) +
+  theme_minimal() -> ability_50
+
+
+# Period Regularity
+
+coefs <- coef(glm_regularity)
+se <- sqrt(diag(vcov(glm_regularity)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_regularity <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_regularity <- tidy_regularity |> 
+  dplyr::filter(term != "(Intercept)")
+
+ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nRegular Menstrual Periods\nAge <50"
+  ) +
+  theme_minimal() -> regularity_50
 
 ```
 
+# All plots
+```{r}
+combined_plot = (ability + regularity) / (ability_50 + regularity_50)
+
+ggsave(
+  filename = "forest_plot.png",
+  plot = combined_plot,
+  width = 10,
+  height = 10
+)
+```
+
+### Pthalates no covariates
+
+# Models
+```{r}
+glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP, data = data, family = binomial)
+
+glm_regularity <- glm(RegularPeriod_12m ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP, data = data, family = binomial)
+```
+
+# Forest Plots
+```{r}
+# Period Ability
+coefs <- coef(glm_ability)
+se <- sqrt(diag(vcov(glm_ability)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_ability <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_ability <- tidy_ability |> 
+  dplyr::filter(term != "(Intercept)")
+
+
+ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nUnable to Become Pregnant"
+  ) +
+  theme_minimal() -> ability
+
+
+# Period Regularity
+
+coefs <- coef(glm_regularity)
+se <- sqrt(diag(vcov(glm_regularity)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_regularity <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_regularity <- tidy_regularity |> 
+  dplyr::filter(term != "(Intercept)")
+
+ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nRegular Menstrual Periods"
+  ) +
+  theme_minimal() -> regularity
+
+```
+
+### Removing age 50+
+```{r}
+# Prepare data for modeling
+data =
+  data |>
+  filter(Age < 50)
+```
+
+# Models
+```{r}
+glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP, data = data, family = binomial)
+
+glm_regularity <- glm(RegularPeriod_12m ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP, data = data, family = binomial)
+```
+
+# Forest Plots
+```{r}
+# Period Ability
+coefs <- coef(glm_ability)
+se <- sqrt(diag(vcov(glm_ability)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_ability <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_ability <- tidy_ability |> 
+  dplyr::filter(term != "(Intercept)")
+
+
+ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for \nUnable to Become Pregnant \nAge <50"
+  ) +
+  theme_minimal() -> ability_50
+
+
+# Period Regularity
+
+coefs <- coef(glm_regularity)
+se <- sqrt(diag(vcov(glm_regularity)))
+
+OR  <- exp(coefs)
+low <- exp(coefs - 1.96 * se)
+high <- exp(coefs + 1.96 * se)
+
+tidy_regularity <- data.frame(
+  term = names(coefs),
+  estimate = OR,
+  conf.low = low,
+  conf.high = high
+)
+
+tidy_regularity <- tidy_regularity |> 
+  dplyr::filter(term != "(Intercept)")
+
+ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nRegular Menstrual Periods\nAge <50"
+  ) +
+  theme_minimal() -> regularity_50
+
+```
+
+# All plots
+```{r}
+combined_plot = (ability + regularity) / (ability_50 + regularity_50)
+
+ggsave(
+  filename = "forest_plot2.png",
+  plot = combined_plot,
+  width = 10,
+  height = 10
+)
+```
