@@ -221,3 +221,104 @@ ExtractPIPs(
 )
 
 ```
+Making Plots
+```{r}
+plotTheme <- theme(
+  axis.title = element_text(size = 19),
+  axis.text = element_text(size = 17),
+  strip.text = element_text(size = 19),
+  title = element_text(size = 22),
+  legend.text = element_text(size = 17),
+  legend.title = element_text(size = 19)
+)
+
+#first period 
+pred.resp.univar_first_period <- PredictorResponseUnivar(
+  fit = fitkm2_first_period,
+  q.fixed = 0.5,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP", "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ggplot(
+  pred.resp.univar_first_period,
+  aes(z, est, ymin = est - 1.96 * se, ymax = est + 1.96 * se)
+) +
+  geom_smooth(stat = "identity") +
+  facet_wrap(~ variable, scales = "free_x") +
+  xlab("Phthalate Concentration") +
+  ylab("Change in expected age of first period") +
+  plotTheme
+
+#unable to be pregnant
+pred.resp.univar_unable_pregnant <- PredictorResponseUnivar(
+  fit = fitkm2_unable_pregnant,
+  q.fixed = 0.5,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP", "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ggplot(
+  pred.resp.univar_unable_pregnant,
+  aes(z, est, ymin = est - 1.96 * se, ymax = est + 1.96 * se)
+) +
+  geom_smooth(stat = "identity") +
+  facet_wrap(~ variable, scales = "free_x") +
+  xlab("Phthalate Concentration") +
+  ylab("Change in expected age of first period") +
+  plotTheme
+
+#regular period
+pred.resp.univar_regular_period <- PredictorResponseUnivar(
+  fit = fitkm2_regular_period,
+  q.fixed = 0.5,
+  z.names = c("MBZP", "MEOHP", "MIBP", "MEHP", "MEHHP", "MEP", "MCPP", "MBP", "MECPP", "MCOP", "MCNP")
+)
+
+ggplot(
+  pred.resp.univar_regular_period,
+  aes(z, est, ymin = est - 1.96 * se, ymax = est + 1.96 * se)
+) +
+  geom_smooth(stat = "identity") +
+  facet_wrap(~ variable, scales = "free_x") +
+  xlab("Phthalate Concentration") +
+  ylab("Change in expected age of first period") +
+  plotTheme
+```
+Exposure-response functions at different co-exposure levels
+```{r}
+#
+pred.resp.bivar_first_period <- PredictorResponseBivar(
+  fit = fitkm2_first_period,
+  min.plot.dist = 1
+)
+
+pred.resp.bivar.levels_first_period <- PredictorResponseBivarLevels(
+  pred.resp.df = pred.resp.bivar_first_period,
+  Z = phthalates_log,
+  qs = c(0.1, 0.5, 0.9)
+)
+
+pred.resp.bivar.levels_plot <- pred.resp.bivar.levels_first_period %>%
+  mutate(
+    quantile = factor(quantile)
+  ) %>%
+  arrange(variable2, variable1, quantile, z1)
+
+ggplot(
+  pred.resp.bivar.levels_plot,
+  aes(
+    x = z1,
+    y = est,
+    colour = quantile,
+    group = interaction(variable1, variable2, quantile)
+  )
+) +
+  geom_line(linewidth = 1.1) +
+  facet_grid(variable2 ~ variable1, scales = "free_x") +
+  labs(
+    title = "h(expos1 | quantiles of expos2)",
+    x = "expos1",
+    y = "est",
+    colour = "quantile"
+  ) +
+  plotTheme
+```
