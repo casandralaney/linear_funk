@@ -13,6 +13,7 @@ library(tidyverse)
 library(plyr)
 library(stargazer)
 library(pheatmap)
+library(corrplot)
 ```
 
 # Read in cleaned dataset
@@ -84,4 +85,11 @@ corr_heatmap = pheatmap(correlation_matrix,
 
 corr_heatmap
 ```
+
+# Correlation matrix
+```{r}
+corrplot(cor(data |> select(MCNP:MBZP)), method = "circle", type = "full")
+```
+
+
 
