@@ -33,9 +33,14 @@ data = data |>
     UnablePregnant = as.factor(UnablePregnant),
     RegularPeriod_12m = as.factor(RegularPeriod_12m)
   )
+
+data_under50 = data |> 
+  filter(Age < 50)
 ```
 
-# Model using outome as Age_FirstPeriod (counts)
+# All participants
+
+## Model using outome as Age_FirstPeriod (counts)
 ```{r}
 # Model Fitting using mgcv
 
@@ -50,7 +55,7 @@ summary(gam.m1)
 plot(gam.m1, pages=4)
 ```
 
-# Model using outome as Age_FirstPeriod (counts)
+## Model using outome as Age_FirstPeriod (counts)
 ```{r eval = FALSE}
 # Model Training using caret
 
@@ -76,7 +81,7 @@ gam.fit1$finalModel
 plot(gam.fit1$finalModel, pages=4)
 ```
 
-# Model using outome as RegularPeriod_12m (binary)
+## Model using outome as RegularPeriod_12m (binary)
 ```{r}
 # Model Fitting using mgcv
 
@@ -91,7 +96,7 @@ summary(gam.m2)
 plot(gam.m2, pages=4)
 ```
 
-# Model using outome as RegularPeriod_12m (binary)
+## Model using outome as RegularPeriod_12m (binary)
 ```{r eval = FALSE}
 # Model Training using caret
 
@@ -115,36 +120,36 @@ gam.fit2$finalModel
 plot(gam.fit2$finalModel, pages=4)
 ```
 
-# Model using outome as Age_LastPeriod (counts)
+## Model using outome as UnablePregnant (binary)
 ```{r}
 # Model Fitting using mgcv
 
 # Fit model
-gam.m3 <- gam(Age_LastPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+gam.m3 <- gam(UnablePregnant ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
                 s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
-                Year,
-              data = data,
-              family = poisson)
+                Year, 
+              data = data, 
+              family = binomial)
 summary(gam.m3)
 # Generate plots for the nonlinear terms included in the model
 plot(gam.m3, pages=4)
 ```
 
-# Model using outome as Age_LastPeriod (counts)
+## Model using outome as UnablePregnant (binary)
 ```{r eval = FALSE}
 # Model Training using caret
 
 # Matrix of predictors
-x3 <- model.matrix(Age_LastPeriod ~ Age + Race + MCNP + MCOP + MECPP + MBP + MCPP + 
+x3 <- model.matrix(UnablePregnant ~ Age + Race + MCNP + MCOP + MECPP + MBP + MCPP + 
                     MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Year, data)[, -1]
 # Vector of response
-y3 <- data$Age_LastPeriod
+y3 <- data$UnablePregnant
 # Set seed for reproducibility
 set.seed(2)
 # Train model
 gam.fit3 <- train(x3, y3,
                   method = "gam",
-                  family = poisson,
+                  family = binomial,
                   trControl = ctrl1)
 # Best tuning parameters
 gam.fit3$bestTune 
@@ -154,43 +159,124 @@ gam.fit3$finalModel
 plot(gam.fit3$finalModel, pages=4)
 ```
 
-# Model using outome as UnablePregnant (binary)
+# Participants under 50
+
+## Model using outome as Age_FirstPeriod (counts)
 ```{r}
 # Model Fitting using mgcv
 
 # Fit model
-gam.m4 <- gam(UnablePregnant ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
-                s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
-                Year,
-              data = data,
-              family = binomial)
-summary(gam.m4)
+gam.m1_under50 <- gam(Age_FirstPeriod ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                        s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                        Year,
+                      data = data_under50,
+                      family = poisson)
+summary(gam.m1_under50)
 # Generate plots for the nonlinear terms included in the model
-plot(gam.m4, pages=4)
+plot(gam.m1_under50, pages=4)
 ```
 
-# Model using outome as UnablePregnant (binary)
+## Model using outome as Age_FirstPeriod (counts)
 ```{r eval = FALSE}
 # Model Training using caret
 
 # Matrix of predictors
-x4 <- model.matrix(UnablePregnant ~ Age + Race + MCNP + MCOP + MECPP + MBP + MCPP + 
-                    MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Year, data)[, -1]
+x1_under50 <- model.matrix(Age_FirstPeriod ~ Age + Race + MCNP + MCOP + MECPP + MBP + MCPP + 
+                             MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Year, data_under50)[, -1]
 # Vector of response
-y4 <- data$UnablePregnant
+y1_under50 <- data_under50$Age_FirstPeriod
+
 # Set seed for reproducibility
 set.seed(2)
 # Train model
-gam.fit4 <- train(x4, y4,
-                  method = "gam",
-                  family = binomial,
-                  trControl = ctrl1)
+gam.fit1_under50 <- train(x1_under50, y1_under50,
+                          method = "gam",
+                          family = poisson,
+                          trControl = ctrl1)
 # Best tuning parameters
-gam.fit4$bestTune 
+gam.fit1_under50$bestTune 
 # Final model
-gam.fit4$finalModel
+gam.fit1_under50$finalModel
 # Generate plots for the nonlinear terms included in the model
-plot(gam.fit4$finalModel, pages=4)
+plot(gam.fit1_under50$finalModel, pages=4)
+```
+
+## Model using outome as RegularPeriod_12m (binary)
+```{r}
+# Model Fitting using mgcv
+
+# Fit model
+gam.m2_under50 <- gam(RegularPeriod_12m ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                        s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                        Year,
+                      data = data_under50,
+                      family = binomial)
+summary(gam.m2_under50)
+# Generate plots for the nonlinear terms included in the model
+plot(gam.m2_under50, pages=4)
+```
+
+## Model using outome as RegularPeriod_12m (binary)
+```{r eval = FALSE}
+# Model Training using caret
+
+# Matrix of predictors
+x2_under50 <- model.matrix(RegularPeriod_12m ~ Age + Race + MCNP + MCOP + MECPP + MBP + MCPP + 
+                    MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Year, data_under50)[, -1]
+# Vector of response
+y2_under50 <- data_under50$RegularPeriod_12m
+# Set seed for reproducibility
+set.seed(2)
+# Train model
+gam.fit2_under50 <- train(x2_under50, y2_under50,
+                          method = "gam",
+                          family = binomial,
+                          trControl = ctrl1)
+# Best tuning parameters
+gam.fit2_under50$bestTune 
+# Final model
+gam.fit2_under50$finalModel
+# Generate plots for the nonlinear terms included in the model
+plot(gam.fit2_under50$finalModel, pages=4)
+```
+
+## Model using outome as UnablePregnant (binary)
+```{r}
+# Model Fitting using mgcv
+
+# Fit model
+gam.m3_under50 <- gam(UnablePregnant ~ Age + Race + s(MCNP) + s(MCOP) + s(MECPP) + s(MBP) + 
+                        s(MCPP) + s(MEP) + s(MEHHP) + s(MEHP) + s(MIBP) + s(MEOHP) + s(MBZP) + 
+                        Year, 
+                      data = data_under50, 
+                      family = binomial)
+summary(gam.m3_under50)
+# Generate plots for the nonlinear terms included in the model
+plot(gam.m3_under50, pages=4)
+```
+
+## Model using outome as UnablePregnant (binary)
+```{r eval = FALSE}
+# Model Training using caret
+
+# Matrix of predictors
+x3_under50 <- model.matrix(UnablePregnant ~ Age + Race + MCNP + MCOP + MECPP + MBP + MCPP + 
+                             MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Year, data_under50)[, -1]
+# Vector of response
+y3_under50 <- data_under50$UnablePregnant
+# Set seed for reproducibility
+set.seed(2)
+# Train model
+gam.fit3_under50 <- train(x3_under50, y3_under50,
+                          method = "gam",
+                          family = binomial,
+                          trControl = ctrl1)
+# Best tuning parameters
+gam.fit3_under50$bestTune 
+# Final model
+gam.fit3_under50$finalModel
+# Generate plots for the nonlinear terms included in the model
+plot(gam.fit3_under50$finalModel, pages=4)
 ```
 
 
