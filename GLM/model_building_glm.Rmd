@@ -57,7 +57,7 @@ tidy_ability <- tidy(glm_ability, exponentiate = TRUE, conf.int = TRUE) |>
 tidy_regularity <- tidy(glm_regularity, exponentiate = TRUE, conf.int = TRUE) |>
   filter(term != "(Intercept)")
 
-tidy_first <- tidy(glm_first_period, exponentiate = TRUE, conf.int = TRUE) |>
+tidy_first <- tidy(glm_first_period, exponentiate = FALSE, conf.int = TRUE) |>
   filter(term != "(Intercept)")
 
 # Forest Plots
@@ -89,11 +89,11 @@ ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
 ggplot(tidy_first, aes(x = estimate, y = reorder(term, estimate))) +
   geom_point() +
   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
-  geom_vline(xintercept = 1, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
   labs(
-    x = "Odds Ratio (95% CI)",
+    x = "Effect Estimates (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for\nAge at First Period"
+    title = "Effect Estimates for\nAge at First Period"
   ) +
   theme_minimal() -> first1
 ```
@@ -130,7 +130,7 @@ tidy_ability <- tidy(glm_ability, exponentiate = TRUE, conf.int = TRUE) |>
 tidy_regularity <- tidy(glm_regularity, exponentiate = TRUE, conf.int = TRUE) |>
   filter(term != "(Intercept)")
 
-tidy_first <- tidy(glm_first_period, exponentiate = TRUE, conf.int = TRUE) |>
+tidy_first <- tidy(glm_first_period, exponentiate = FALSE, conf.int = TRUE) |>
   filter(term != "(Intercept)")
 
 # Forest Plots
@@ -159,11 +159,11 @@ ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
 ggplot(tidy_first, aes(x = estimate, y = reorder(term, estimate))) +
   geom_point() +
   geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
-  geom_vline(xintercept = 1, linetype = "dashed") +
+  geom_vline(xintercept = 0, linetype = "dashed") +
   labs(
-    x = "Odds Ratio (95% CI)",
+    x = "Effect Estimates (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for\n Age at First Period"
+    title = "Effect Estimates for\n Age at First Period"
   ) +
   theme_minimal() -> first1
 ```
