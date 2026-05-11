@@ -1,20 +1,18 @@
 # Advanced Analytic Methods in EHS: Final Paper Code
 
+Team Members: Sijda Ahmed, Casandra Jade S. Laney, Emily Weaver
+
 ## Repository Structure
 
-Data_Cleaning.Rmd 
-Data_Cleaning.pdf
-
-Demographic Data.Rmd
-Demographic-Data.pdf
-
-Preliminary_data_analyses.Rmd
-Preliminary_data_analyses.pdf
-
-model_building_glm.Rmd
-model_building_glm.pdf
-
-model_building_gam.Rmd
-model_building_gam.pdf
-
-
+```
+linear_funk/
+│
+├── data/                          # Raw datasets and cleaned data
+├── EDA/                           # Data cleaning, exploratory data analysis, demographics table code and knitted pdfs
+├── GLM/                           # Generalized linear models code and plots
+├── GAM/                           # Generalized additive models code and knitted pdf
+├── Mixtures/                      # Principal component analysis and factor analysis code and knitted html files
+├── BKMR/                          # Bayesian kernel machine regression code and outputs as RDS files
+├── Misc                           # Miscellaneous files
+└── README.md                      # Project documentation
+```
