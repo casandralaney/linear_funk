@@ -68,7 +68,7 @@ ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for \nThe Inability to Become Pregnant"
+    title = "Odds Ratios for \nUnable to Become \nPregnant"
   ) +
   theme_minimal() -> ability1
 
@@ -90,7 +90,7 @@ ggplot(tidy_first, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for\nThe Age at First Period"
+    title = "Odds Ratios for\nAge at First Period"
   ) +
   theme_minimal() -> first1
 ```
@@ -101,7 +101,7 @@ combined_plot = (ability1 + regularity1 + first1)
 combined_plot
 
 ggsave(
-  filename = "glm_forest_plot.png",
+  filename = "glm_covariates.png",
   plot = combined_plot,
   width = 10,
   height = 5
@@ -138,7 +138,7 @@ ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for \nThe Inability to Become Pregnant"
+    title = "Odds Ratios for \nUnable to Become Pregnant"
   ) +
   theme_minimal() -> ability1
 
@@ -160,7 +160,7 @@ ggplot(tidy_first, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for\nThe Age at First Period"
+    title = "Odds Ratios for\n Age at First Period"
   ) +
   theme_minimal() -> first1
 ```
@@ -171,10 +171,10 @@ combined_plot = (ability1 + regularity1 + first1)
 combined_plot
 
 ggsave(
-  filename = "glm_covariates.png",
+  filename = "glm_forest_plot.png",
   plot = combined_plot,
   width = 10,
-  height = 5
+  height = 4
 )
 ```
 
