@@ -39,6 +39,76 @@ data1 <- data |>
   filter(Age < 50) 
 ```
 
+# Models with year and race
+```{r}
+glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data1, family = binomial)
+
+glm_regularity <- glm(RegularPeriod_12m ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data1, family = binomial)
+
+glm_first_period <- glm(Age_FirstPeriod ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age + Race + Year, data = data1, family = gaussian)
+```
+
+# Forest Plots
+```{r}
+# 95% CI
+tidy_ability <- tidy(glm_ability, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(term != "(Intercept)")
+
+tidy_regularity <- tidy(glm_regularity, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(term != "(Intercept)")
+
+tidy_first <- tidy(glm_first_period, exponentiate = TRUE, conf.int = TRUE) |>
+  filter(term != "(Intercept)")
+
+# Forest Plots
+ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for \nThe Inability to Become Pregnant"
+  ) +
+  theme_minimal() -> ability1
+
+ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nRegular Menstrual Periods"
+  ) +
+  theme_minimal() -> regularity1
+
+ggplot(tidy_first, aes(x = estimate, y = reorder(term, estimate))) +
+  geom_point() +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high), height = 0.2) +
+  geom_vline(xintercept = 1, linetype = "dashed") +
+  labs(
+    x = "Odds Ratio (95% CI)",
+    y = "Variables",
+    title = "Odds Ratios for\nThe Age at First Period"
+  ) +
+  theme_minimal() -> first1
+```
+
+# All plots
+```{r}
+combined_plot = (ability1 + regularity1 + first1)
+combined_plot
+
+ggsave(
+  filename = "glm_forest_plot.png",
+  plot = combined_plot,
+  width = 10,
+  height = 5
+)
+```
+
+
 # Models
 ```{r}
 glm_ability <- glm(UnablePregnant ~ MCNP + MCOP + MECPP + MBP + MCPP + MEP + MEHHP + MEHP + MIBP + MEOHP + MBZP + Age, data = data1, family = binomial)
@@ -68,7 +138,7 @@ ggplot(tidy_ability, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for \nUnable to Become Pregnant \nAge <50"
+    title = "Odds Ratios for \nThe Inability to Become Pregnant"
   ) +
   theme_minimal() -> ability1
 
@@ -79,7 +149,7 @@ ggplot(tidy_regularity, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for\nRegular Menstrual Periods\nAge <50"
+    title = "Odds Ratios for\nRegular Menstrual Periods"
   ) +
   theme_minimal() -> regularity1
 
@@ -90,7 +160,7 @@ ggplot(tidy_first, aes(x = estimate, y = reorder(term, estimate))) +
   labs(
     x = "Odds Ratio (95% CI)",
     y = "Variables",
-    title = "Odds Ratios for\nAge of First Period\nAge <50"
+    title = "Odds Ratios for\nThe Age at First Period"
   ) +
   theme_minimal() -> first1
 ```
@@ -101,12 +171,10 @@ combined_plot = (ability1 + regularity1 + first1)
 combined_plot
 
 ggsave(
-  filename = "glm_forest_plot.png",
+  filename = "glm_covariates.png",
   plot = combined_plot,
   width = 10,
   height = 5
 )
 ```
 
-# coefficient table
-`
